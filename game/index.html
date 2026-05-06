@@ -18,7 +18,7 @@
     padding: 18px;
     direction: rtl;
   }
-  header, #progress, #card, #summary, #start-screen {
+  header, #progress, #card, #summary, #start-screen, #user-screen {
     width: 100%;
     max-width: 760px;
   }
@@ -39,6 +39,15 @@
     color: #4d6870;
     font-size: 0.95rem;
   }
+  .header-main {
+    min-width: 0;
+  }
+  .header-actions {
+    display: flex;
+    gap: 7px;
+    flex-wrap: wrap;
+    margin-top: 7px;
+  }
   #score-box {
     background: #12505a;
     color: #fff;
@@ -49,7 +58,7 @@
     font-weight: 800;
     box-shadow: 0 10px 24px rgba(18, 80, 90, 0.18);
   }
-  #start-screen {
+  #start-screen, #user-screen {
     margin-top: 64px;
     background: #fff;
     border: 1px solid #cfe5e1;
@@ -58,7 +67,44 @@
     box-shadow: 0 16px 40px rgba(21, 49, 58, 0.11);
     text-align: center;
   }
-  #start-screen h1 { margin-bottom: 16px; }
+  #user-screen { display: none; }
+  #start-screen h1, #user-screen h1 { margin-bottom: 16px; }
+  #user-list {
+    display: grid;
+    gap: 9px;
+    margin-bottom: 14px;
+  }
+  .user-row {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .user-btn {
+    flex: 1;
+    min-height: 56px;
+    border: 2px solid #cfe5e1;
+    border-radius: 12px;
+    background: #fbfdfc;
+    color: #15313a;
+    padding: 10px 12px;
+    text-align: right;
+    font-weight: 900;
+  }
+  .user-btn span {
+    display: block;
+    margin-top: 3px;
+    color: #6b8288;
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+  .icon-btn {
+    min-width: 48px;
+    border: 2px solid #cfe5e1;
+    border-radius: 12px;
+    background: #e9f6f5;
+    color: #12505a;
+    font-weight: 900;
+  }
   #name-input {
     width: 100%;
     max-width: 360px;
@@ -69,6 +115,45 @@
     text-align: right;
     margin-bottom: 12px;
   }
+  .setup-group {
+    margin: 14px auto 0;
+    max-width: 520px;
+    text-align: right;
+  }
+  .setup-label {
+    display: block;
+    margin-bottom: 8px;
+    color: #4d6870;
+    font-weight: 800;
+  }
+  .option-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .setup-option {
+    min-height: 54px;
+    border: 2px solid #cfe5e1;
+    border-radius: 12px;
+    background: #fbfdfc;
+    color: #15313a;
+    font-weight: 900;
+    line-height: 1.15;
+    padding: 8px 10px;
+  }
+  .setup-option span {
+    display: block;
+    margin-top: 3px;
+    color: #6b8288;
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+  .setup-option.selected {
+    border-color: #12505a;
+    background: #e9f6f5;
+    color: #12505a;
+  }
+  #start-btn { margin-top: 18px; }
   button {
     font: inherit;
     cursor: pointer;
@@ -202,9 +287,54 @@
   }
   #levels th, #levels td { padding: 8px 10px; border-bottom: 1px solid #e6efed; }
   #levels th { color: #12505a; background: #edf7f6; }
+  #report-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: rgba(21,49,58,0.48);
+    align-items: flex-start;
+    justify-content: center;
+    padding: 22px 14px;
+    overflow-y: auto;
+  }
+  #report-overlay.open { display: flex; }
+  #report-box {
+    width: 100%;
+    max-width: 560px;
+    background: #fff;
+    border-radius: 18px;
+    padding: 22px 20px;
+    box-shadow: 0 20px 52px rgba(21,49,58,0.24);
+  }
+  #report-close {
+    float: left;
+    border: 0;
+    background: transparent;
+    color: #6b8288;
+    font-size: 1.4rem;
+    line-height: 1;
+  }
+  #report-title { color: #12505a; margin-bottom: 4px; }
+  #report-meta { color: #6b8288; margin-bottom: 16px; }
+  .report-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: right;
+  }
+  .report-table th, .report-table td {
+    padding: 8px 7px;
+    border-bottom: 1px solid #e6efed;
+  }
+  .report-table th {
+    color: #12505a;
+    background: #edf7f6;
+  }
   @media (max-width: 640px) {
     body { padding: 12px; }
     header { align-items: flex-start; }
+    .header-actions { gap: 5px; }
+    .secondary { padding: 7px 9px; font-size: 0.85rem; }
     #score-box { min-width: 86px; padding: 8px 12px; font-size: 0.92rem; }
     #visual { min-height: 180px; }
     #question-row { padding: 14px 16px 4px; flex-direction: column; }
@@ -212,22 +342,63 @@
     .choice { min-height: 62px; font-size: 1rem; }
     #info-box { margin: 0 16px 14px; }
     #next-btn { width: calc(100% - 32px); margin: 0 16px 18px; }
+    .option-grid { grid-template-columns: 1fr; }
   }
 </style>
 </head>
 <body>
+<div id="report-overlay">
+  <div id="report-box">
+    <button id="report-close" aria-label="סגור">✕</button>
+    <h2 id="report-title"></h2>
+    <div id="report-meta"></div>
+    <div id="report-content"></div>
+  </div>
+</div>
+
+<section id="user-screen">
+  <h1>משחק מדע 🔬</h1>
+  <div id="user-list"></div>
+  <button id="new-user-btn" class="primary">משתמש חדש</button>
+</section>
+
 <section id="start-screen">
   <h1>משחק מדע 🔬</h1>
   <input id="name-input" type="text" placeholder="השם שלך" maxlength="30">
+  <div class="setup-group">
+    <span class="setup-label">רמה</span>
+    <div class="option-grid" id="level-options">
+      <button type="button" class="setup-option selected" data-level="junior">צעיר<span>בערך גיל 5</span></button>
+      <button type="button" class="setup-option" data-level="standard">רגיל<span>בערך גיל 8</span></button>
+      <button type="button" class="setup-option" data-level="challenge">אתגר<span>מתקדמים</span></button>
+    </div>
+  </div>
+  <div class="setup-group">
+    <span class="setup-label">מספר שאלות</span>
+    <div class="option-grid" id="count-options">
+      <button type="button" class="setup-option" data-count="6">6<span>קצר</span></button>
+      <button type="button" class="setup-option selected" data-count="10">10<span>רגיל</span></button>
+      <button type="button" class="setup-option" data-count="15">15<span>ארוך</span></button>
+    </div>
+  </div>
   <div>
     <button id="start-btn" class="primary">התחל משחק</button>
+  </div>
+  <div style="margin-top:12px">
+    <button id="setup-scores-btn" class="secondary">ניקוד</button>
+    <button id="setup-change-user-btn" class="secondary">שנה משתמש</button>
   </div>
 </section>
 
 <header id="header">
-  <div>
+  <div class="header-main">
     <h1>משחק מדע 🔬</h1>
     <div id="player-line"></div>
+    <div class="header-actions">
+      <button id="home-btn" class="secondary">בית</button>
+      <button id="scores-btn" class="secondary">ניקוד</button>
+      <button id="change-user-btn" class="secondary">שנה משתמש</button>
+    </div>
   </div>
   <div id="score-box">ניקוד: <span id="score">0</span></div>
 </header>
@@ -253,15 +424,25 @@
     <tr><th>נושא</th><th>רמה</th><th>נפתרו</th></tr>
   </table>
   <button id="again-btn" class="primary">משחק נוסף</button>
+  <button id="summary-home-btn" class="secondary">בית</button>
+  <button id="summary-scores-btn" class="secondary">ניקוד</button>
   <button id="change-player-btn" class="secondary">שנה שחקן</button>
 </section>
 
-<script>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { firebaseConfig } from './firebase-config.js';
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const USERS_COLLECTION = 'scienceUsers';
+
 const STORAGE_KEY = 'science_questions_progress_v2';
 const PLAYER_KEY = 'science_questions_player';
+const LEVEL_KEY = 'science_questions_level';
+const COUNT_KEY = 'science_questions_count';
 const LEVEL_NAMES = ['מתחיל', 'חוקר', 'מבין', 'פותר', 'מדען!'];
-const SESSION_BASE = 12;
-const SESSION_MAX = 18;
 
 let pending = [];
 let currentQuestion = null;
@@ -270,6 +451,9 @@ let score = 0;
 let streak = 0;
 let player = '';
 let data = null;
+let selectedLevel = 'junior';
+let selectedQuestionCount = 10;
+let currentProfile = null;
 
 const TRACK = {
   title: 'פיזיקה של דברים יומיומיים',
@@ -280,6 +464,36 @@ const TRACK = {
     heat: { name: 'חום ושינויי מצב', icon: '🌡️' },
     light: { name: 'אור וצל', icon: '🔦' },
     experiments: { name: 'ניסוי הוגן', icon: '🧪' }
+  }
+};
+
+const LEVEL_PROFILES = {
+  junior: {
+    label: 'צעיר',
+    subtitle: 'בערך גיל 5',
+    minDifficulty: 1,
+    maxDifficulty: 1,
+    choiceCount: 2,
+    levelStepStreak: 4,
+    families: ['friction', 'density', 'heat', 'light']
+  },
+  standard: {
+    label: 'רגיל',
+    subtitle: 'בערך גיל 8',
+    minDifficulty: 1,
+    maxDifficulty: 4,
+    choiceCount: 4,
+    levelStepStreak: 3,
+    families: ['friction', 'circuits', 'density', 'heat', 'light', 'experiments']
+  },
+  challenge: {
+    label: 'אתגר',
+    subtitle: 'מתקדמים',
+    minDifficulty: 2,
+    maxDifficulty: 5,
+    choiceCount: 4,
+    levelStepStreak: 2,
+    families: ['friction', 'circuits', 'density', 'heat', 'light', 'experiments']
   }
 };
 
@@ -345,20 +559,103 @@ function saveAllProgress(all) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
 }
 
-function loadPlayerData(name) {
-  const all = loadAllProgress();
-  if (!all[name]) all[name] = { sessionCount: 0, solved: {}, families: {}, history: [] };
-  if (!all[name].solved) all[name].solved = {};
-  if (!all[name].families) all[name].families = {};
-  if (!all[name].history) all[name].history = [];
-  saveAllProgress(all);
-  return all[name];
+function normalizeUserData(userData = {}) {
+  if (!userData.sessionCount) userData.sessionCount = 0;
+  if (!userData.solved) userData.solved = {};
+  if (!userData.families) userData.families = {};
+  if (!userData.history) userData.history = [];
+  return userData;
 }
 
-function savePlayerData() {
+async function loadPlayerData(name) {
+  const all = loadAllProgress();
+  let userData = normalizeUserData(all[name] || {});
+  try {
+    const snap = await getDoc(doc(db, USERS_COLLECTION, name));
+    if (snap.exists()) userData = normalizeUserData(snap.data());
+  } catch (err) {
+    console.warn('Using local progress because Firestore could not be read.', err);
+  }
+  all[name] = userData;
+  saveAllProgress(all);
+  return userData;
+}
+
+async function savePlayerData() {
   const all = loadAllProgress();
   all[player] = data;
   saveAllProgress(all);
+  try {
+    await setDoc(doc(db, USERS_COLLECTION, player), data);
+  } catch (err) {
+    console.warn('Progress saved locally but not to Firestore.', err);
+  }
+}
+
+function userStats(userData) {
+  const sessions = userData.sessionCount || 0;
+  const solved = Object.keys(userData.solved || {}).length;
+  const correct = Object.values(userData.families || {}).reduce((sum, state) => sum + (state.correct || 0), 0);
+  const total = Object.values(userData.families || {}).reduce((sum, state) => sum + (state.total || 0), 0);
+  return { sessions, solved, correct, total };
+}
+
+async function loadAllRemoteUsers() {
+  const all = loadAllProgress();
+  try {
+    const snap = await getDocs(collection(db, USERS_COLLECTION));
+    snap.forEach(userDoc => {
+      all[userDoc.id] = normalizeUserData(userDoc.data());
+    });
+    saveAllProgress(all);
+  } catch (err) {
+    console.warn('Using local users because Firestore user list could not be read.', err);
+  }
+  return all;
+}
+
+async function renderUserList() {
+  const all = await loadAllRemoteUsers();
+  const list = document.getElementById('user-list');
+  list.innerHTML = '';
+  const names = Object.keys(all).sort((a, b) => a.localeCompare(b));
+  if (!names.length) {
+    list.innerHTML = '<div style="color:#6b8288;padding:8px 0">עדיין אין משתמשים</div>';
+  }
+  names.forEach(name => {
+    const stats = userStats(all[name]);
+    const row = document.createElement('div');
+    row.className = 'user-row';
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'user-btn';
+    btn.innerHTML = `${name}<span>${stats.sessions} משחקים · ${stats.solved} שאלות נפתרו · ${stats.correct}/${stats.total}</span>`;
+    btn.addEventListener('click', () => chooseUser(name));
+
+    const reportBtn = document.createElement('button');
+    reportBtn.type = 'button';
+    reportBtn.className = 'icon-btn';
+    reportBtn.title = 'ניקוד';
+    reportBtn.textContent = '📊';
+    reportBtn.addEventListener('click', () => showReport(name, all[name]).catch(console.error));
+
+    row.appendChild(btn);
+    row.appendChild(reportBtn);
+    list.appendChild(row);
+  });
+}
+
+function chooseUser(name) {
+  player = name;
+  localStorage.setItem(PLAYER_KEY, player);
+  document.getElementById('name-input').value = player;
+  setScreen('start');
+}
+
+async function showUsers() {
+  await renderUserList();
+  setScreen('users');
 }
 
 function familyState(family) {
@@ -369,7 +666,8 @@ function familyState(family) {
 }
 
 function makeChoices(correct, distractors) {
-  return shuffle([correct, ...distractors.filter(d => d !== correct).slice(0, 3)]);
+  const count = currentProfile ? currentProfile.choiceCount : 4;
+  return shuffle([correct, ...distractors.filter(d => d !== correct).slice(0, count - 1)]);
 }
 
 function question(id, family, difficulty, prompt, correct, answers, info) {
@@ -382,6 +680,17 @@ function generateFriction(difficulty) {
   const b = pick(SURFACES.filter(s => s.friction !== a.friction));
   const low = a.friction === 'נמוך' ? a : b;
   const high = a.friction === 'גבוה' ? a : b;
+  if (currentProfile && currentProfile.choiceCount === 2) {
+    return question(
+      `friction-junior-${low.name}-${high.name}`,
+      'friction',
+      difficulty,
+      `איפה קל יותר להחליק: על ${low.name} או על ${high.name}?`,
+      low.name,
+      makeChoices(low.name, [high.name, 'שניהם אותו דבר', 'אף אחד מהם']),
+      `על ${low.name} יש פחות חיכוך. כשיש פחות חיכוך, דברים מחליקים בקלות רבה יותר.`
+    );
+  }
   if (difficulty <= 2) {
     return question(
       `friction-low-${low.name}-${high.name}`,
@@ -437,6 +746,18 @@ function generateCircuits(difficulty) {
 
 function generateDensity(difficulty) {
   const material = pick(MATERIALS);
+  if (currentProfile && currentProfile.choiceCount === 2) {
+    const correct = material.floats ? 'יצוף' : 'ישקע';
+    return question(
+      `density-junior-${material.name}`,
+      'density',
+      difficulty,
+      `${material.name} במים: מה יקרה?`,
+      correct,
+      makeChoices(correct, [material.floats ? 'ישקע' : 'יצוף', 'ייעלם', 'יקפוץ']),
+      `${material.name} ${material.density}. דברים שפחות צפופים מהמים צפים, ודברים צפופים יותר שוקעים.`
+    );
+  }
   if (difficulty <= 2) {
     const correct = material.floats ? 'הוא יצוף' : 'הוא ישקע';
     return question(
@@ -466,6 +787,17 @@ function generateDensity(difficulty) {
 
 function generateHeat(difficulty) {
   const item = pick(HEAT_CASES);
+  if (currentProfile && currentProfile.choiceCount === 2) {
+    return question(
+      `heat-junior-${item.item}`,
+      'heat',
+      difficulty,
+      `מתי ${item.item} תתייבש מהר יותר?`,
+      item.hot,
+      makeChoices(item.hot, [item.cold, 'בתוך שקית סגורה', 'במקרר']),
+      'חום ורוח עוזרים למים להתאדות. לכן דברים רטובים מתייבשים מהר יותר כשחם ויש אוויר זז.'
+    );
+  }
   if (difficulty <= 2) {
     return question(
       `heat-dry-${item.item}`,
@@ -494,6 +826,18 @@ function generateHeat(difficulty) {
 
 function generateLight(difficulty) {
   const object = pick(LIGHT_OBJECTS);
+  if (currentProfile && currentProfile.choiceCount === 2) {
+    const correct = `לקרב את ה${object} לפנס`;
+    return question(
+      `light-junior-${object}`,
+      'light',
+      difficulty,
+      `איך עושים צל גדול יותר של ${object}?`,
+      correct,
+      makeChoices(correct, [`להרחיק את ה${object} מהפנס`, 'לכבות את הפנס', 'לסגור עיניים']),
+      'כשהחפץ קרוב לפנס, הוא מסתיר יותר אור ולכן הצל על הקיר גדול יותר.'
+    );
+  }
   if (difficulty <= 2) {
     const correct = `לקרב את ה${object} לפנס`;
     return question(
@@ -552,7 +896,8 @@ const GENERATORS = {
 
 function chooseFamily(preferred = null) {
   if (preferred) return preferred;
-  const weighted = Object.keys(TRACK.families).flatMap(family => {
+  const families = currentProfile ? currentProfile.families : Object.keys(TRACK.families);
+  const weighted = families.flatMap(family => {
     const state = familyState(family);
     const weight = Math.max(1, 6 - state.level) + state.misses;
     return Array(weight).fill(family);
@@ -564,7 +909,8 @@ function targetDifficulty(family, similar = false) {
   const state = familyState(family);
   const streakBonus = streak >= 4 ? 2 : streak >= 2 ? 1 : 0;
   const raw = similar ? Math.max(1, state.level - 1) : state.level + streakBonus;
-  return Math.max(1, Math.min(5, raw));
+  const profile = currentProfile || LEVEL_PROFILES.standard;
+  return Math.max(profile.minDifficulty, Math.min(profile.maxDifficulty, raw));
 }
 
 function generateQuestion(preferredFamily = null, similar = false) {
@@ -578,6 +924,7 @@ function generateQuestion(preferredFamily = null, similar = false) {
 }
 
 function setScreen(screen) {
+  document.getElementById('user-screen').style.display = screen === 'users' ? 'block' : 'none';
   document.getElementById('start-screen').style.display = screen === 'start' ? 'block' : 'none';
   document.getElementById('header').style.display = screen === 'game' ? 'flex' : 'none';
   document.getElementById('progress').style.display = screen === 'game' ? 'block' : 'none';
@@ -591,7 +938,8 @@ function showQuestion() {
   document.getElementById('icon').textContent = q.icon;
   document.getElementById('question').textContent = q.question;
   document.getElementById('topic').textContent = `${q.topic} · ${LEVEL_NAMES[q.difficulty - 1]}`;
-  document.getElementById('progress').textContent = `שאלה ${answered + 1} · ${TRACK.title}`;
+  document.getElementById('progress').textContent =
+    `שאלה ${answered + 1} מתוך ${selectedQuestionCount} · ${TRACK.title}`;
   document.getElementById('score').textContent = score;
   document.getElementById('info-box').style.display = 'none';
   document.getElementById('next-btn').style.display = 'none';
@@ -624,13 +972,14 @@ function handleAnswer(btn, answer, q) {
     score++;
     streak++;
     state.correct++;
-    state.level = Math.min(5, state.level + (streak >= 3 ? 1 : 0));
+    const stepAt = currentProfile ? currentProfile.levelStepStreak : 3;
+    state.level = Math.min(5, state.level + (streak >= stepAt ? 1 : 0));
     data.solved[q.id] = true;
   } else {
     streak = 0;
     state.misses++;
     state.level = Math.max(1, state.level - 1);
-    if (answered < SESSION_MAX) {
+    if (answered < selectedQuestionCount) {
       pending.splice(Math.min(1, pending.length), 0, generateQuestion(q.family, true));
       pending.splice(Math.min(2, pending.length), 0, q);
     }
@@ -638,7 +987,7 @@ function handleAnswer(btn, answer, q) {
   document.getElementById('score').textContent = score;
   data.history.unshift({ id: q.id, family: q.family, difficulty: q.difficulty, correct, at: Date.now() });
   data.history = data.history.slice(0, 80);
-  savePlayerData();
+  savePlayerData().catch(console.error);
 
   document.getElementById('info-box').textContent = q.info;
   document.getElementById('info-box').style.display = 'block';
@@ -665,39 +1014,143 @@ function showSummary() {
   });
 }
 
-function startGame() {
+async function showReport(name = player, userData = null) {
+  userData = userData || data || await loadPlayerData(name);
+  const stats = userStats(userData);
+  document.getElementById('report-title').textContent = `ניקוד: ${name}`;
+  document.getElementById('report-meta').textContent =
+    `${stats.sessions} משחקים · ${stats.solved} שאלות נפתרו · ${stats.correct}/${stats.total} תשובות נכונות`;
+
+  const rows = Object.entries(TRACK.families).map(([family, meta]) => {
+    const state = (userData.families || {})[family] || { level: 1, correct: 0, total: 0 };
+    const solvedCount = Object.keys(userData.solved || {}).filter(id => id.startsWith(`${family}-`)).length;
+    const pct = state.total ? `${Math.round((state.correct / state.total) * 100)}%` : '-';
+    return `<tr><td>${meta.name}</td><td>${LEVEL_NAMES[(state.level || 1) - 1]}</td><td>${solvedCount}</td><td>${state.correct || 0}/${state.total || 0}</td><td>${pct}</td></tr>`;
+  }).join('');
+  document.getElementById('report-content').innerHTML = `
+    <table class="report-table">
+      <tr><th>נושא</th><th>רמה</th><th>נפתרו</th><th>נכון</th><th>דיוק</th></tr>
+      ${rows}
+    </table>
+  `;
+  document.getElementById('report-overlay').classList.add('open');
+}
+
+function closeReport() {
+  document.getElementById('report-overlay').classList.remove('open');
+}
+
+function selectSetupOption(groupId, dataName, value) {
+  const group = document.getElementById(groupId);
+  group.querySelectorAll('.setup-option').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset[dataName] === String(value));
+  });
+}
+
+function setLevel(level) {
+  selectedLevel = LEVEL_PROFILES[level] ? level : 'junior';
+  currentProfile = LEVEL_PROFILES[selectedLevel];
+  selectSetupOption('level-options', 'level', selectedLevel);
+}
+
+function setQuestionCount(count) {
+  selectedQuestionCount = Number(count) || 10;
+  selectSetupOption('count-options', 'count', selectedQuestionCount);
+}
+
+async function startGame() {
   player = document.getElementById('name-input').value.trim() || 'שחקן';
   localStorage.setItem(PLAYER_KEY, player);
-  data = loadPlayerData(player);
+  localStorage.setItem(LEVEL_KEY, selectedLevel);
+  localStorage.setItem(COUNT_KEY, String(selectedQuestionCount));
+  currentProfile = LEVEL_PROFILES[selectedLevel];
+  data = await loadPlayerData(player);
   data.sessionCount++;
-  savePlayerData();
+  await savePlayerData();
   pending = [];
   answered = 0;
   score = 0;
   streak = 0;
-  document.getElementById('player-line').textContent = `${player} · ${TRACK.title}`;
+  document.getElementById('player-line').textContent =
+    `${player} · ${currentProfile.label} · ${selectedQuestionCount} שאלות`;
   setScreen('game');
   showQuestion();
 }
 
-document.getElementById('start-btn').addEventListener('click', startGame);
+function goHome() {
+  pending = [];
+  answered = 0;
+  score = 0;
+  streak = 0;
+  document.getElementById('score').textContent = '0';
+  setScreen('start');
+}
+
+document.querySelectorAll('#level-options .setup-option').forEach(btn => {
+  btn.addEventListener('click', () => setLevel(btn.dataset.level));
+});
+document.querySelectorAll('#count-options .setup-option').forEach(btn => {
+  btn.addEventListener('click', () => setQuestionCount(btn.dataset.count));
+});
+document.getElementById('start-btn').addEventListener('click', () => startGame().catch(console.error));
 document.getElementById('name-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') startGame();
+  if (e.key === 'Enter') startGame().catch(console.error);
 });
 document.getElementById('next-btn').addEventListener('click', () => {
-  if (answered >= SESSION_BASE && (pending.length === 0 || answered >= SESSION_MAX)) showSummary();
+  if (answered >= selectedQuestionCount) showSummary();
   else showQuestion();
 });
-document.getElementById('again-btn').addEventListener('click', startGame);
+document.getElementById('again-btn').addEventListener('click', () => startGame().catch(console.error));
+document.getElementById('summary-home-btn').addEventListener('click', goHome);
+document.getElementById('summary-scores-btn').addEventListener('click', () => showReport().catch(console.error));
+document.getElementById('setup-scores-btn').addEventListener('click', async () => {
+  if (!player) return showUsers().catch(console.error);
+  data = data || await loadPlayerData(player);
+  await showReport();
+});
+document.getElementById('setup-change-user-btn').addEventListener('click', () => {
+  localStorage.removeItem(PLAYER_KEY);
+  player = '';
+  data = null;
+  document.getElementById('name-input').value = '';
+  showUsers().catch(console.error);
+});
+document.getElementById('home-btn').addEventListener('click', goHome);
+document.getElementById('scores-btn').addEventListener('click', () => showReport().catch(console.error));
+document.getElementById('change-user-btn').addEventListener('click', () => {
+  localStorage.removeItem(PLAYER_KEY);
+  player = '';
+  data = null;
+  document.getElementById('name-input').value = '';
+  showUsers().catch(console.error);
+});
 document.getElementById('change-player-btn').addEventListener('click', () => {
   localStorage.removeItem(PLAYER_KEY);
+  player = '';
+  data = null;
+  document.getElementById('name-input').value = '';
+  showUsers().catch(console.error);
+});
+document.getElementById('new-user-btn').addEventListener('click', () => {
+  player = '';
+  data = null;
   document.getElementById('name-input').value = '';
   setScreen('start');
+});
+document.getElementById('report-close').addEventListener('click', closeReport);
+document.getElementById('report-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('report-overlay')) closeReport();
 });
 
 (() => {
   const savedPlayer = localStorage.getItem(PLAYER_KEY);
-  if (savedPlayer) document.getElementById('name-input').value = savedPlayer;
+  setLevel(localStorage.getItem(LEVEL_KEY) || selectedLevel);
+  setQuestionCount(localStorage.getItem(COUNT_KEY) || selectedQuestionCount);
+  if (savedPlayer) {
+    chooseUser(savedPlayer);
+  } else {
+    showUsers().catch(console.error);
+  }
 })();
 </script>
 </body>
