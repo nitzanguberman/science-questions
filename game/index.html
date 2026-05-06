@@ -429,7 +429,15 @@
   <button id="change-player-btn" class="secondary">שנה שחקן</button>
 </section>
 
-<script>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { firebaseConfig } from './firebase-config.js';
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const USERS_COLLECTION = 'scienceUsers';
+
 const STORAGE_KEY = 'science_questions_progress_v2';
 const PLAYER_KEY = 'science_questions_player';
 const LEVEL_KEY = 'science_questions_level';
@@ -551,20 +559,37 @@ function saveAllProgress(all) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
 }
 
-function loadPlayerData(name) {
-  const all = loadAllProgress();
-  if (!all[name]) all[name] = { sessionCount: 0, solved: {}, families: {}, history: [] };
-  if (!all[name].solved) all[name].solved = {};
-  if (!all[name].families) all[name].families = {};
-  if (!all[name].history) all[name].history = [];
-  saveAllProgress(all);
-  return all[name];
+function normalizeUserData(userData = {}) {
+  if (!userData.sessionCount) userData.sessionCount = 0;
+  if (!userData.solved) userData.solved = {};
+  if (!userData.families) userData.families = {};
+  if (!userData.history) userData.history = [];
+  return userData;
 }
 
-function savePlayerData() {
+async function loadPlayerData(name) {
+  const all = loadAllProgress();
+  let userData = normalizeUserData(all[name] || {});
+  try {
+    const snap = await getDoc(doc(db, USERS_COLLECTION, name));
+    if (snap.exists()) userData = normalizeUserData(snap.data());
+  } catch (err) {
+    console.warn('Using local progress because Firestore could not be read.', err);
+  }
+  all[name] = userData;
+  saveAllProgress(all);
+  return userData;
+}
+
+async function savePlayerData() {
   const all = loadAllProgress();
   all[player] = data;
   saveAllProgress(all);
+  try {
+    await setDoc(doc(db, USERS_COLLECTION, player), data);
+  } catch (err) {
+    console.warn('Progress saved locally but not to Firestore.', err);
+  }
 }
 
 function userStats(userData) {
@@ -575,8 +600,22 @@ function userStats(userData) {
   return { sessions, solved, correct, total };
 }
 
-function renderUserList() {
+async function loadAllRemoteUsers() {
   const all = loadAllProgress();
+  try {
+    const snap = await getDocs(collection(db, USERS_COLLECTION));
+    snap.forEach(userDoc => {
+      all[userDoc.id] = normalizeUserData(userDoc.data());
+    });
+    saveAllProgress(all);
+  } catch (err) {
+    console.warn('Using local users because Firestore user list could not be read.', err);
+  }
+  return all;
+}
+
+async function renderUserList() {
+  const all = await loadAllRemoteUsers();
   const list = document.getElementById('user-list');
   list.innerHTML = '';
   const names = Object.keys(all).sort((a, b) => a.localeCompare(b));
@@ -599,7 +638,7 @@ function renderUserList() {
     reportBtn.className = 'icon-btn';
     reportBtn.title = 'ניקוד';
     reportBtn.textContent = '📊';
-    reportBtn.addEventListener('click', () => showReport(name, all[name]));
+    reportBtn.addEventListener('click', () => showReport(name, all[name]).catch(console.error));
 
     row.appendChild(btn);
     row.appendChild(reportBtn);
@@ -614,8 +653,8 @@ function chooseUser(name) {
   setScreen('start');
 }
 
-function showUsers() {
-  renderUserList();
+async function showUsers() {
+  await renderUserList();
   setScreen('users');
 }
 
@@ -948,7 +987,7 @@ function handleAnswer(btn, answer, q) {
   document.getElementById('score').textContent = score;
   data.history.unshift({ id: q.id, family: q.family, difficulty: q.difficulty, correct, at: Date.now() });
   data.history = data.history.slice(0, 80);
-  savePlayerData();
+  savePlayerData().catch(console.error);
 
   document.getElementById('info-box').textContent = q.info;
   document.getElementById('info-box').style.display = 'block';
@@ -975,7 +1014,8 @@ function showSummary() {
   });
 }
 
-function showReport(name = player, userData = data || loadPlayerData(name)) {
+async function showReport(name = player, userData = null) {
+  userData = userData || data || await loadPlayerData(name);
   const stats = userStats(userData);
   document.getElementById('report-title').textContent = `ניקוד: ${name}`;
   document.getElementById('report-meta').textContent =
@@ -1018,15 +1058,15 @@ function setQuestionCount(count) {
   selectSetupOption('count-options', 'count', selectedQuestionCount);
 }
 
-function startGame() {
+async function startGame() {
   player = document.getElementById('name-input').value.trim() || 'שחקן';
   localStorage.setItem(PLAYER_KEY, player);
   localStorage.setItem(LEVEL_KEY, selectedLevel);
   localStorage.setItem(COUNT_KEY, String(selectedQuestionCount));
   currentProfile = LEVEL_PROFILES[selectedLevel];
-  data = loadPlayerData(player);
+  data = await loadPlayerData(player);
   data.sessionCount++;
-  savePlayerData();
+  await savePlayerData();
   pending = [];
   answered = 0;
   score = 0;
@@ -1052,44 +1092,44 @@ document.querySelectorAll('#level-options .setup-option').forEach(btn => {
 document.querySelectorAll('#count-options .setup-option').forEach(btn => {
   btn.addEventListener('click', () => setQuestionCount(btn.dataset.count));
 });
-document.getElementById('start-btn').addEventListener('click', startGame);
+document.getElementById('start-btn').addEventListener('click', () => startGame().catch(console.error));
 document.getElementById('name-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') startGame();
+  if (e.key === 'Enter') startGame().catch(console.error);
 });
 document.getElementById('next-btn').addEventListener('click', () => {
   if (answered >= selectedQuestionCount) showSummary();
   else showQuestion();
 });
-document.getElementById('again-btn').addEventListener('click', startGame);
+document.getElementById('again-btn').addEventListener('click', () => startGame().catch(console.error));
 document.getElementById('summary-home-btn').addEventListener('click', goHome);
-document.getElementById('summary-scores-btn').addEventListener('click', () => showReport());
-document.getElementById('setup-scores-btn').addEventListener('click', () => {
-  if (!player) return showUsers();
-  data = data || loadPlayerData(player);
-  showReport();
+document.getElementById('summary-scores-btn').addEventListener('click', () => showReport().catch(console.error));
+document.getElementById('setup-scores-btn').addEventListener('click', async () => {
+  if (!player) return showUsers().catch(console.error);
+  data = data || await loadPlayerData(player);
+  await showReport();
 });
 document.getElementById('setup-change-user-btn').addEventListener('click', () => {
   localStorage.removeItem(PLAYER_KEY);
   player = '';
   data = null;
   document.getElementById('name-input').value = '';
-  showUsers();
+  showUsers().catch(console.error);
 });
 document.getElementById('home-btn').addEventListener('click', goHome);
-document.getElementById('scores-btn').addEventListener('click', () => showReport());
+document.getElementById('scores-btn').addEventListener('click', () => showReport().catch(console.error));
 document.getElementById('change-user-btn').addEventListener('click', () => {
   localStorage.removeItem(PLAYER_KEY);
   player = '';
   data = null;
   document.getElementById('name-input').value = '';
-  showUsers();
+  showUsers().catch(console.error);
 });
 document.getElementById('change-player-btn').addEventListener('click', () => {
   localStorage.removeItem(PLAYER_KEY);
   player = '';
   data = null;
   document.getElementById('name-input').value = '';
-  showUsers();
+  showUsers().catch(console.error);
 });
 document.getElementById('new-user-btn').addEventListener('click', () => {
   player = '';
@@ -1109,7 +1149,7 @@ document.getElementById('report-overlay').addEventListener('click', e => {
   if (savedPlayer) {
     chooseUser(savedPlayer);
   } else {
-    showUsers();
+    showUsers().catch(console.error);
   }
 })();
 </script>
