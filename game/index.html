@@ -69,6 +69,45 @@
     text-align: right;
     margin-bottom: 12px;
   }
+  .setup-group {
+    margin: 14px auto 0;
+    max-width: 520px;
+    text-align: right;
+  }
+  .setup-label {
+    display: block;
+    margin-bottom: 8px;
+    color: #4d6870;
+    font-weight: 800;
+  }
+  .option-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .setup-option {
+    min-height: 54px;
+    border: 2px solid #cfe5e1;
+    border-radius: 12px;
+    background: #fbfdfc;
+    color: #15313a;
+    font-weight: 900;
+    line-height: 1.15;
+    padding: 8px 10px;
+  }
+  .setup-option span {
+    display: block;
+    margin-top: 3px;
+    color: #6b8288;
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+  .setup-option.selected {
+    border-color: #12505a;
+    background: #e9f6f5;
+    color: #12505a;
+  }
+  #start-btn { margin-top: 18px; }
   button {
     font: inherit;
     cursor: pointer;
@@ -212,6 +251,7 @@
     .choice { min-height: 62px; font-size: 1rem; }
     #info-box { margin: 0 16px 14px; }
     #next-btn { width: calc(100% - 32px); margin: 0 16px 18px; }
+    .option-grid { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -219,6 +259,22 @@
 <section id="start-screen">
   <h1>משחק מדע 🔬</h1>
   <input id="name-input" type="text" placeholder="השם שלך" maxlength="30">
+  <div class="setup-group">
+    <span class="setup-label">רמה</span>
+    <div class="option-grid" id="level-options">
+      <button type="button" class="setup-option selected" data-level="junior">צעיר<span>בערך גיל 5</span></button>
+      <button type="button" class="setup-option" data-level="standard">רגיל<span>בערך גיל 8</span></button>
+      <button type="button" class="setup-option" data-level="challenge">אתגר<span>מתקדמים</span></button>
+    </div>
+  </div>
+  <div class="setup-group">
+    <span class="setup-label">מספר שאלות</span>
+    <div class="option-grid" id="count-options">
+      <button type="button" class="setup-option" data-count="6">6<span>קצר</span></button>
+      <button type="button" class="setup-option selected" data-count="10">10<span>רגיל</span></button>
+      <button type="button" class="setup-option" data-count="15">15<span>ארוך</span></button>
+    </div>
+  </div>
   <div>
     <button id="start-btn" class="primary">התחל משחק</button>
   </div>
@@ -259,9 +315,9 @@
 <script>
 const STORAGE_KEY = 'science_questions_progress_v2';
 const PLAYER_KEY = 'science_questions_player';
+const LEVEL_KEY = 'science_questions_level';
+const COUNT_KEY = 'science_questions_count';
 const LEVEL_NAMES = ['מתחיל', 'חוקר', 'מבין', 'פותר', 'מדען!'];
-const SESSION_BASE = 12;
-const SESSION_MAX = 18;
 
 let pending = [];
 let currentQuestion = null;
@@ -270,6 +326,9 @@ let score = 0;
 let streak = 0;
 let player = '';
 let data = null;
+let selectedLevel = 'junior';
+let selectedQuestionCount = 10;
+let currentProfile = null;
 
 const TRACK = {
   title: 'פיזיקה של דברים יומיומיים',
@@ -280,6 +339,36 @@ const TRACK = {
     heat: { name: 'חום ושינויי מצב', icon: '🌡️' },
     light: { name: 'אור וצל', icon: '🔦' },
     experiments: { name: 'ניסוי הוגן', icon: '🧪' }
+  }
+};
+
+const LEVEL_PROFILES = {
+  junior: {
+    label: 'צעיר',
+    subtitle: 'בערך גיל 5',
+    minDifficulty: 1,
+    maxDifficulty: 1,
+    choiceCount: 2,
+    levelStepStreak: 4,
+    families: ['friction', 'density', 'heat', 'light']
+  },
+  standard: {
+    label: 'רגיל',
+    subtitle: 'בערך גיל 8',
+    minDifficulty: 1,
+    maxDifficulty: 4,
+    choiceCount: 4,
+    levelStepStreak: 3,
+    families: ['friction', 'circuits', 'density', 'heat', 'light', 'experiments']
+  },
+  challenge: {
+    label: 'אתגר',
+    subtitle: 'מתקדמים',
+    minDifficulty: 2,
+    maxDifficulty: 5,
+    choiceCount: 4,
+    levelStepStreak: 2,
+    families: ['friction', 'circuits', 'density', 'heat', 'light', 'experiments']
   }
 };
 
@@ -369,7 +458,8 @@ function familyState(family) {
 }
 
 function makeChoices(correct, distractors) {
-  return shuffle([correct, ...distractors.filter(d => d !== correct).slice(0, 3)]);
+  const count = currentProfile ? currentProfile.choiceCount : 4;
+  return shuffle([correct, ...distractors.filter(d => d !== correct).slice(0, count - 1)]);
 }
 
 function question(id, family, difficulty, prompt, correct, answers, info) {
@@ -382,6 +472,17 @@ function generateFriction(difficulty) {
   const b = pick(SURFACES.filter(s => s.friction !== a.friction));
   const low = a.friction === 'נמוך' ? a : b;
   const high = a.friction === 'גבוה' ? a : b;
+  if (currentProfile && currentProfile.choiceCount === 2) {
+    return question(
+      `friction-junior-${low.name}-${high.name}`,
+      'friction',
+      difficulty,
+      `איפה קל יותר להחליק: על ${low.name} או על ${high.name}?`,
+      low.name,
+      makeChoices(low.name, [high.name, 'שניהם אותו דבר', 'אף אחד מהם']),
+      `על ${low.name} יש פחות חיכוך. כשיש פחות חיכוך, דברים מחליקים בקלות רבה יותר.`
+    );
+  }
   if (difficulty <= 2) {
     return question(
       `friction-low-${low.name}-${high.name}`,
@@ -437,6 +538,18 @@ function generateCircuits(difficulty) {
 
 function generateDensity(difficulty) {
   const material = pick(MATERIALS);
+  if (currentProfile && currentProfile.choiceCount === 2) {
+    const correct = material.floats ? 'יצוף' : 'ישקע';
+    return question(
+      `density-junior-${material.name}`,
+      'density',
+      difficulty,
+      `${material.name} במים: מה יקרה?`,
+      correct,
+      makeChoices(correct, [material.floats ? 'ישקע' : 'יצוף', 'ייעלם', 'יקפוץ']),
+      `${material.name} ${material.density}. דברים שפחות צפופים מהמים צפים, ודברים צפופים יותר שוקעים.`
+    );
+  }
   if (difficulty <= 2) {
     const correct = material.floats ? 'הוא יצוף' : 'הוא ישקע';
     return question(
@@ -466,6 +579,17 @@ function generateDensity(difficulty) {
 
 function generateHeat(difficulty) {
   const item = pick(HEAT_CASES);
+  if (currentProfile && currentProfile.choiceCount === 2) {
+    return question(
+      `heat-junior-${item.item}`,
+      'heat',
+      difficulty,
+      `מתי ${item.item} תתייבש מהר יותר?`,
+      item.hot,
+      makeChoices(item.hot, [item.cold, 'בתוך שקית סגורה', 'במקרר']),
+      'חום ורוח עוזרים למים להתאדות. לכן דברים רטובים מתייבשים מהר יותר כשחם ויש אוויר זז.'
+    );
+  }
   if (difficulty <= 2) {
     return question(
       `heat-dry-${item.item}`,
@@ -494,6 +618,18 @@ function generateHeat(difficulty) {
 
 function generateLight(difficulty) {
   const object = pick(LIGHT_OBJECTS);
+  if (currentProfile && currentProfile.choiceCount === 2) {
+    const correct = `לקרב את ה${object} לפנס`;
+    return question(
+      `light-junior-${object}`,
+      'light',
+      difficulty,
+      `איך עושים צל גדול יותר של ${object}?`,
+      correct,
+      makeChoices(correct, [`להרחיק את ה${object} מהפנס`, 'לכבות את הפנס', 'לסגור עיניים']),
+      'כשהחפץ קרוב לפנס, הוא מסתיר יותר אור ולכן הצל על הקיר גדול יותר.'
+    );
+  }
   if (difficulty <= 2) {
     const correct = `לקרב את ה${object} לפנס`;
     return question(
@@ -552,7 +688,8 @@ const GENERATORS = {
 
 function chooseFamily(preferred = null) {
   if (preferred) return preferred;
-  const weighted = Object.keys(TRACK.families).flatMap(family => {
+  const families = currentProfile ? currentProfile.families : Object.keys(TRACK.families);
+  const weighted = families.flatMap(family => {
     const state = familyState(family);
     const weight = Math.max(1, 6 - state.level) + state.misses;
     return Array(weight).fill(family);
@@ -564,7 +701,8 @@ function targetDifficulty(family, similar = false) {
   const state = familyState(family);
   const streakBonus = streak >= 4 ? 2 : streak >= 2 ? 1 : 0;
   const raw = similar ? Math.max(1, state.level - 1) : state.level + streakBonus;
-  return Math.max(1, Math.min(5, raw));
+  const profile = currentProfile || LEVEL_PROFILES.standard;
+  return Math.max(profile.minDifficulty, Math.min(profile.maxDifficulty, raw));
 }
 
 function generateQuestion(preferredFamily = null, similar = false) {
@@ -591,7 +729,8 @@ function showQuestion() {
   document.getElementById('icon').textContent = q.icon;
   document.getElementById('question').textContent = q.question;
   document.getElementById('topic').textContent = `${q.topic} · ${LEVEL_NAMES[q.difficulty - 1]}`;
-  document.getElementById('progress').textContent = `שאלה ${answered + 1} · ${TRACK.title}`;
+  document.getElementById('progress').textContent =
+    `שאלה ${answered + 1} מתוך ${selectedQuestionCount} · ${TRACK.title}`;
   document.getElementById('score').textContent = score;
   document.getElementById('info-box').style.display = 'none';
   document.getElementById('next-btn').style.display = 'none';
@@ -624,13 +763,14 @@ function handleAnswer(btn, answer, q) {
     score++;
     streak++;
     state.correct++;
-    state.level = Math.min(5, state.level + (streak >= 3 ? 1 : 0));
+    const stepAt = currentProfile ? currentProfile.levelStepStreak : 3;
+    state.level = Math.min(5, state.level + (streak >= stepAt ? 1 : 0));
     data.solved[q.id] = true;
   } else {
     streak = 0;
     state.misses++;
     state.level = Math.max(1, state.level - 1);
-    if (answered < SESSION_MAX) {
+    if (answered < selectedQuestionCount) {
       pending.splice(Math.min(1, pending.length), 0, generateQuestion(q.family, true));
       pending.splice(Math.min(2, pending.length), 0, q);
     }
@@ -665,9 +805,30 @@ function showSummary() {
   });
 }
 
+function selectSetupOption(groupId, dataName, value) {
+  const group = document.getElementById(groupId);
+  group.querySelectorAll('.setup-option').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset[dataName] === String(value));
+  });
+}
+
+function setLevel(level) {
+  selectedLevel = LEVEL_PROFILES[level] ? level : 'junior';
+  currentProfile = LEVEL_PROFILES[selectedLevel];
+  selectSetupOption('level-options', 'level', selectedLevel);
+}
+
+function setQuestionCount(count) {
+  selectedQuestionCount = Number(count) || 10;
+  selectSetupOption('count-options', 'count', selectedQuestionCount);
+}
+
 function startGame() {
   player = document.getElementById('name-input').value.trim() || 'שחקן';
   localStorage.setItem(PLAYER_KEY, player);
+  localStorage.setItem(LEVEL_KEY, selectedLevel);
+  localStorage.setItem(COUNT_KEY, String(selectedQuestionCount));
+  currentProfile = LEVEL_PROFILES[selectedLevel];
   data = loadPlayerData(player);
   data.sessionCount++;
   savePlayerData();
@@ -675,17 +836,24 @@ function startGame() {
   answered = 0;
   score = 0;
   streak = 0;
-  document.getElementById('player-line').textContent = `${player} · ${TRACK.title}`;
+  document.getElementById('player-line').textContent =
+    `${player} · ${currentProfile.label} · ${selectedQuestionCount} שאלות`;
   setScreen('game');
   showQuestion();
 }
 
+document.querySelectorAll('#level-options .setup-option').forEach(btn => {
+  btn.addEventListener('click', () => setLevel(btn.dataset.level));
+});
+document.querySelectorAll('#count-options .setup-option').forEach(btn => {
+  btn.addEventListener('click', () => setQuestionCount(btn.dataset.count));
+});
 document.getElementById('start-btn').addEventListener('click', startGame);
 document.getElementById('name-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') startGame();
 });
 document.getElementById('next-btn').addEventListener('click', () => {
-  if (answered >= SESSION_BASE && (pending.length === 0 || answered >= SESSION_MAX)) showSummary();
+  if (answered >= selectedQuestionCount) showSummary();
   else showQuestion();
 });
 document.getElementById('again-btn').addEventListener('click', startGame);
@@ -698,6 +866,8 @@ document.getElementById('change-player-btn').addEventListener('click', () => {
 (() => {
   const savedPlayer = localStorage.getItem(PLAYER_KEY);
   if (savedPlayer) document.getElementById('name-input').value = savedPlayer;
+  setLevel(localStorage.getItem(LEVEL_KEY) || selectedLevel);
+  setQuestionCount(localStorage.getItem(COUNT_KEY) || selectedQuestionCount);
 })();
 </script>
 </body>
