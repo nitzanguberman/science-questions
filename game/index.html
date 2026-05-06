@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>משחק מדע</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🔬%3C/text%3E%3C/svg%3E">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    font-family: system-ui, "Segoe UI", Arial, sans-serif;
+    background: #edf7f6;
+    color: #15313a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 18px;
+    direction: rtl;
+  }
+  header, #progress, #card, #summary, #start-screen {
+    width: 100%;
+    max-width: 760px;
+  }
+  header {
+    display: none;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 12px;
+  }
+  h1 {
+    font-size: clamp(1.45rem, 3vw, 2.1rem);
+    color: #12505a;
+    line-height: 1.1;
+  }
+  #player-line {
+    margin-top: 4px;
+    color: #4d6870;
+    font-size: 0.95rem;
+  }
+  #score-box {
+    background: #12505a;
+    color: #fff;
+    border-radius: 24px;
+    padding: 10px 20px;
+    min-width: 112px;
+    text-align: center;
+    font-weight: 800;
+    box-shadow: 0 10px 24px rgba(18, 80, 90, 0.18);
+  }
+  #start-screen {
+    margin-top: 64px;
+    background: #fff;
+    border: 1px solid #cfe5e1;
+    border-radius: 18px;
+    padding: 30px 24px;
+    box-shadow: 0 16px 40px rgba(21, 49, 58, 0.11);
+    text-align: center;
+  }
+  #start-screen h1 { margin-bottom: 16px; }
+  #name-input {
+    width: 100%;
+    max-width: 360px;
+    padding: 13px 16px;
+    border: 2px solid #cfe5e1;
+    border-radius: 12px;
+    font: inherit;
+    text-align: right;
+    margin-bottom: 12px;
+  }
+  button {
+    font: inherit;
+    cursor: pointer;
+  }
+  .primary {
+    border: 0;
+    border-radius: 12px;
+    background: #12505a;
+    color: #fff;
+    padding: 12px 24px;
+    font-weight: 800;
+  }
+  .secondary {
+    border: 1px solid #aacdc8;
+    border-radius: 999px;
+    background: #fff;
+    color: #12505a;
+    padding: 7px 12px;
+    font-weight: 700;
+  }
+  #progress {
+    display: none;
+    color: #4d6870;
+    margin-bottom: 10px;
+  }
+  #card {
+    display: none;
+    background: #fff;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 18px 44px rgba(21, 49, 58, 0.13);
+  }
+  #visual {
+    min-height: 220px;
+    background:
+      radial-gradient(circle at 18% 22%, #f7d56f 0 52px, transparent 54px),
+      linear-gradient(135deg, #d9f2f0 0%, #f8fbef 55%, #ffe8c9 100%);
+    display: grid;
+    place-items: center;
+    border-bottom: 1px solid #d8e9e6;
+  }
+  #icon {
+    width: min(40vw, 190px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.72);
+    border: 6px solid rgba(18,80,90,0.12);
+    display: grid;
+    place-items: center;
+    font-size: clamp(4.5rem, 16vw, 8.5rem);
+    box-shadow: 0 18px 34px rgba(21, 49, 58, 0.13);
+  }
+  #question-row {
+    padding: 18px 24px 8px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  #question {
+    font-size: clamp(1.15rem, 2.7vw, 1.45rem);
+    font-weight: 900;
+    line-height: 1.35;
+    color: #12505a;
+  }
+  #topic {
+    flex-shrink: 0;
+    background: #e7f4ed;
+    color: #236245;
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-weight: 800;
+    font-size: 0.9rem;
+  }
+  #choices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 16px 24px 22px;
+  }
+  .choice {
+    min-height: 76px;
+    border: 2px solid #d5dfdd;
+    background: #fbfdfc;
+    border-radius: 12px;
+    color: #15313a;
+    padding: 12px;
+    font-size: 1.08rem;
+    font-weight: 800;
+    line-height: 1.25;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: #12505a;
+    background: #e9f6f5;
+  }
+  .choice.correct { background: #d9f0df; border-color: #238247; }
+  .choice.wrong { background: #ffe0dd; border-color: #c43c32; }
+  .choice.reveal { background: #d9f0df; border-color: #238247; }
+  .choice.hidden-after-answer { display: none; }
+  #info-box {
+    display: none;
+    margin: 0 24px 16px;
+    padding: 13px 15px;
+    border-radius: 12px;
+    border-right: 5px solid #12505a;
+    background: #f1f9f8;
+    line-height: 1.55;
+    color: #24444c;
+  }
+  #next-btn {
+    display: none;
+    width: calc(100% - 48px);
+    margin: 0 24px 22px;
+  }
+  #summary {
+    display: none;
+    background: #fff;
+    border-radius: 18px;
+    padding: 30px 24px;
+    text-align: center;
+    box-shadow: 0 16px 40px rgba(21, 49, 58, 0.11);
+  }
+  #summary h2 { color: #12505a; margin-bottom: 8px; font-size: 1.8rem; }
+  #final-score { font-size: 2.8rem; font-weight: 900; color: #236245; margin: 10px 0; }
+  #summary-text { color: #4d6870; margin-bottom: 18px; }
+  #levels {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 18px 0 22px;
+    text-align: right;
+  }
+  #levels th, #levels td { padding: 8px 10px; border-bottom: 1px solid #e6efed; }
+  #levels th { color: #12505a; background: #edf7f6; }
+  @media (max-width: 640px) {
+    body { padding: 12px; }
+    header { align-items: flex-start; }
+    #score-box { min-width: 86px; padding: 8px 12px; font-size: 0.92rem; }
+    #visual { min-height: 180px; }
+    #question-row { padding: 14px 16px 4px; flex-direction: column; }
+    #choices { grid-template-columns: 1fr; padding: 12px 16px 16px; gap: 9px; }
+    .choice { min-height: 62px; font-size: 1rem; }
+    #info-box { margin: 0 16px 14px; }
+    #next-btn { width: calc(100% - 32px); margin: 0 16px 18px; }
+  }
+</style>
+</head>
+<body>
+<section id="start-screen">
+  <h1>משחק מדע 🔬</h1>
+  <input id="name-input" type="text" placeholder="השם שלך" maxlength="30">
+  <div>
+    <button id="start-btn" class="primary">התחל משחק</button>
+  </div>
+</section>
+
+<header id="header">
+  <div>
+    <h1>משחק מדע 🔬</h1>
+    <div id="player-line"></div>
+  </div>
+  <div id="score-box">ניקוד: <span id="score">0</span></div>
+</header>
+
+<div id="progress"></div>
+
+<main id="card">
+  <div id="visual"><div id="icon"></div></div>
+  <div id="question-row">
+    <div id="question"></div>
+    <div id="topic"></div>
+  </div>
+  <div id="choices"></div>
+  <div id="info-box"></div>
+  <button id="next-btn" class="primary">הבא ◀</button>
+</main>
+
+<section id="summary">
+  <h2>סיום!</h2>
+  <div id="final-score"></div>
+  <p id="summary-text"></p>
+  <table id="levels">
+    <tr><th>רמה</th><th>שאלות</th><th>מתי חוזר</th></tr>
+  </table>
+  <button id="again-btn" class="primary">משחק נוסף</button>
+  <button id="change-player-btn" class="secondary">שנה שחקן</button>
+</section>
+
+<script>
+const STORAGE_KEY = 'science_questions_progress_v1';
+const PLAYER_KEY = 'science_questions_player';
+const LEVEL_NAMES = ['חדש', 'מתחיל', 'מכיר', 'חזק', 'מדען!'];
+const LEVEL_INTERVALS = ['כל משחק', 'כל 2 משחקים', 'כל 4 משחקים', 'כל 8 משחקים', 'כל 16 משחקים'];
+
+let questions = [];
+let queue = [];
+let currentIdx = 0;
+let score = 0;
+let player = '';
+let data = null;
+
+function shuffle(items) {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function loadAllProgress() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveAllProgress(all) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+}
+
+function loadPlayerData(name) {
+  const all = loadAllProgress();
+  if (!all[name]) all[name] = { sessionCount: 0, questions: {} };
+  saveAllProgress(all);
+  return all[name];
+}
+
+function savePlayerData() {
+  const all = loadAllProgress();
+  all[player] = data;
+  saveAllProgress(all);
+}
+
+function stateFor(question) {
+  if (!data.questions[question.id]) {
+    data.questions[question.id] = { level: 1, lastSession: -999, correct: 0, total: 0 };
+  }
+  return data.questions[question.id];
+}
+
+function isDue(state) {
+  return data.sessionCount - state.lastSession >= Math.pow(2, state.level - 1);
+}
+
+function buildQueue() {
+  let due = questions.filter(q => isDue(stateFor(q)));
+  if (due.length < 8) {
+    const extras = questions
+      .filter(q => !due.includes(q))
+      .sort((a, b) => stateFor(a).level - stateFor(b).level);
+    due = due.concat(extras.slice(0, 8 - due.length));
+  }
+  return shuffle(due).slice(0, 10);
+}
+
+function setScreen(screen) {
+  document.getElementById('start-screen').style.display = screen === 'start' ? 'block' : 'none';
+  document.getElementById('header').style.display = screen === 'game' ? 'flex' : 'none';
+  document.getElementById('progress').style.display = screen === 'game' ? 'block' : 'none';
+  document.getElementById('card').style.display = screen === 'game' ? 'block' : 'none';
+  document.getElementById('summary').style.display = screen === 'summary' ? 'block' : 'none';
+}
+
+function showQuestion() {
+  const q = queue[currentIdx];
+  const state = stateFor(q);
+  document.getElementById('icon').textContent = q.icon;
+  document.getElementById('question').textContent = q.question;
+  document.getElementById('topic').textContent = `${q.topic} · ${LEVEL_NAMES[state.level - 1]}`;
+  document.getElementById('progress').textContent = `שאלה ${currentIdx + 1} מתוך ${queue.length}`;
+  document.getElementById('score').textContent = score;
+  document.getElementById('info-box').style.display = 'none';
+  document.getElementById('next-btn').style.display = 'none';
+
+  const choices = document.getElementById('choices');
+  choices.innerHTML = '';
+  shuffle(q.answers).forEach(answer => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'choice';
+    btn.textContent = answer;
+    btn.addEventListener('click', () => handleAnswer(btn, answer, q));
+    choices.appendChild(btn);
+  });
+}
+
+function handleAnswer(btn, answer, q) {
+  const correct = answer === q.correct;
+  document.querySelectorAll('.choice').forEach(choice => {
+    choice.disabled = true;
+    if (choice.textContent === q.correct) choice.classList.add('reveal');
+    if (choice !== btn && choice.textContent !== q.correct) choice.classList.add('hidden-after-answer');
+  });
+  btn.classList.add(correct ? 'correct' : 'wrong');
+  if (correct) score++;
+  document.getElementById('score').textContent = score;
+
+  const state = stateFor(q);
+  state.total++;
+  if (correct) {
+    state.correct++;
+    state.level = Math.min(5, state.level + 1);
+  } else {
+    state.level = 1;
+  }
+  state.lastSession = data.sessionCount;
+  savePlayerData();
+
+  document.getElementById('info-box').textContent = q.info;
+  document.getElementById('info-box').style.display = 'block';
+  document.getElementById('next-btn').style.display = 'block';
+}
+
+function showSummary() {
+  setScreen('summary');
+  const total = queue.length;
+  const pct = Math.round((score / total) * 100);
+  document.getElementById('final-score').textContent = `${score} / ${total}`;
+  document.getElementById('summary-text').textContent =
+    pct === 100 ? 'מעולה! ענית נכון על הכל.' :
+    pct >= 70 ? 'יפה מאוד! המדע מתחיל להתחבר.' :
+    pct >= 40 ? 'התחלה טובה. עוד משחק יעזור לזכור.' :
+    'כדאי לנסות שוב ולקרוא את ההסברים.';
+
+  const counts = [0, 0, 0, 0, 0];
+  questions.forEach(q => counts[stateFor(q).level - 1]++);
+  const table = document.getElementById('levels');
+  while (table.rows.length > 1) table.deleteRow(1);
+  counts.forEach((count, i) => {
+    if (!count) return;
+    const row = table.insertRow();
+    row.innerHTML = `<td>${LEVEL_NAMES[i]}</td><td>${count}</td><td>${LEVEL_INTERVALS[i]}</td>`;
+  });
+}
+
+function startGame() {
+  player = document.getElementById('name-input').value.trim() || 'שחקן';
+  localStorage.setItem(PLAYER_KEY, player);
+  data = loadPlayerData(player);
+  data.sessionCount++;
+  savePlayerData();
+  queue = buildQueue();
+  currentIdx = 0;
+  score = 0;
+  document.getElementById('player-line').textContent = `${player} · שאלות מדע לגיל 8`;
+  setScreen('game');
+  showQuestion();
+}
+
+document.getElementById('start-btn').addEventListener('click', startGame);
+document.getElementById('name-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') startGame();
+});
+document.getElementById('next-btn').addEventListener('click', () => {
+  currentIdx++;
+  if (currentIdx >= queue.length) showSummary();
+  else showQuestion();
+});
+document.getElementById('again-btn').addEventListener('click', startGame);
+document.getElementById('change-player-btn').addEventListener('click', () => {
+  localStorage.removeItem(PLAYER_KEY);
+  document.getElementById('name-input').value = '';
+  setScreen('start');
+});
+
+(async () => {
+  const resp = await fetch('../science_questions.json');
+  questions = await resp.json();
+  const savedPlayer = localStorage.getItem(PLAYER_KEY);
+  if (savedPlayer) document.getElementById('name-input').value = savedPlayer;
+})();
+</script>
+</body>
+</html>
