@@ -250,24 +250,75 @@
   <div id="final-score"></div>
   <p id="summary-text"></p>
   <table id="levels">
-    <tr><th>רמה</th><th>שאלות</th><th>מתי חוזר</th></tr>
+    <tr><th>נושא</th><th>רמה</th><th>נפתרו</th></tr>
   </table>
   <button id="again-btn" class="primary">משחק נוסף</button>
   <button id="change-player-btn" class="secondary">שנה שחקן</button>
 </section>
 
 <script>
-const STORAGE_KEY = 'science_questions_progress_v1';
+const STORAGE_KEY = 'science_questions_progress_v2';
 const PLAYER_KEY = 'science_questions_player';
-const LEVEL_NAMES = ['חדש', 'מתחיל', 'מכיר', 'חזק', 'מדען!'];
-const LEVEL_INTERVALS = ['כל משחק', 'כל 2 משחקים', 'כל 4 משחקים', 'כל 8 משחקים', 'כל 16 משחקים'];
+const LEVEL_NAMES = ['מתחיל', 'חוקר', 'מבין', 'פותר', 'מדען!'];
+const SESSION_BASE = 12;
+const SESSION_MAX = 18;
 
-let questions = [];
-let queue = [];
-let currentIdx = 0;
+let pending = [];
+let currentQuestion = null;
+let answered = 0;
 let score = 0;
+let streak = 0;
 let player = '';
 let data = null;
+
+const TRACK = {
+  title: 'פיזיקה של דברים יומיומיים',
+  families: {
+    friction: { name: 'חיכוך', icon: '🛝' },
+    circuits: { name: 'חשמל ומעגלים', icon: '🔋' },
+    density: { name: 'צפיפות וציפה', icon: '🪨' },
+    heat: { name: 'חום ושינויי מצב', icon: '🌡️' },
+    light: { name: 'אור וצל', icon: '🔦' },
+    experiments: { name: 'ניסוי הוגן', icon: '🧪' }
+  }
+};
+
+const SURFACES = [
+  { name: 'קרח', friction: 'נמוך' },
+  { name: 'רצפה רטובה', friction: 'נמוך' },
+  { name: 'שטיח מחוספס', friction: 'גבוה' },
+  { name: 'נייר זכוכית', friction: 'גבוה' },
+  { name: 'שיש חלק', friction: 'נמוך' },
+  { name: 'מדרכה יבשה', friction: 'גבוה' }
+];
+const MATERIALS = [
+  { name: 'עץ', floats: true, density: 'פחות צפוף מהמים' },
+  { name: 'פקק שעם', floats: true, density: 'פחות צפוף מהמים' },
+  { name: 'אבן', floats: false, density: 'צפופה יותר מהמים' },
+  { name: 'מטבע מתכת', floats: false, density: 'צפוף יותר מהמים' },
+  { name: 'קוביית קרח', floats: true, density: 'קצת פחות צפופה ממים נוזליים' },
+  { name: 'כדור פלסטיק חלול', floats: true, density: 'בממוצע פחות צפוף מהמים' }
+];
+const CONDUCTORS = [
+  { name: 'כף מתכת', conducts: true },
+  { name: 'חוט נחושת', conducts: true },
+  { name: 'מסמר ברזל', conducts: true },
+  { name: 'מקל עץ יבש', conducts: false },
+  { name: 'סרגל פלסטיק', conducts: false },
+  { name: 'גומייה', conducts: false }
+];
+const HEAT_CASES = [
+  { item: 'כביסה רטובה', hot: 'יום חם עם רוח', cold: 'יום קר ולח בלי רוח' },
+  { item: 'שלולית קטנה', hot: 'שמש חזקה ורוח קלה', cold: 'צל, קור ואוויר לח' },
+  { item: 'מגבת רטובה', hot: 'חדר חם ומאוורר', cold: 'חדר קר וסגור' }
+];
+const LIGHT_OBJECTS = ['יד', 'ספר', 'בקבוק אטום', 'כדור'];
+const EXPERIMENTS = [
+  { test: 'איזה משטח גורם למכונית צעצוע לעצור מהר יותר', change: 'סוג המשטח', keep: 'אותה מכונית ואותה דחיפה' },
+  { test: 'האם מים חמים ממיסים סוכר מהר יותר', change: 'טמפרטורת המים', keep: 'אותה כמות מים ואותה כמות סוכר' },
+  { test: 'האם אורך החוט משנה את גובה הצליל', change: 'אורך החוט', keep: 'אותו חומר ואותה מתיחה בערך' },
+  { test: 'האם גודל הצל משתנה כשמקרבים חפץ לפנס', change: 'מרחק החפץ מהפנס', keep: 'אותו חפץ ואותו פנס' }
+];
 
 function shuffle(items) {
   const arr = [...items];
@@ -276,6 +327,10 @@ function shuffle(items) {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
+}
+
+function pick(items) {
+  return items[Math.floor(Math.random() * items.length)];
 }
 
 function loadAllProgress() {
@@ -292,7 +347,10 @@ function saveAllProgress(all) {
 
 function loadPlayerData(name) {
   const all = loadAllProgress();
-  if (!all[name]) all[name] = { sessionCount: 0, questions: {} };
+  if (!all[name]) all[name] = { sessionCount: 0, solved: {}, families: {}, history: [] };
+  if (!all[name].solved) all[name].solved = {};
+  if (!all[name].families) all[name].families = {};
+  if (!all[name].history) all[name].history = [];
   saveAllProgress(all);
   return all[name];
 }
@@ -303,26 +361,220 @@ function savePlayerData() {
   saveAllProgress(all);
 }
 
-function stateFor(question) {
-  if (!data.questions[question.id]) {
-    data.questions[question.id] = { level: 1, lastSession: -999, correct: 0, total: 0 };
+function familyState(family) {
+  if (!data.families[family]) {
+    data.families[family] = { level: 1, correct: 0, total: 0, misses: 0 };
   }
-  return data.questions[question.id];
+  return data.families[family];
 }
 
-function isDue(state) {
-  return data.sessionCount - state.lastSession >= Math.pow(2, state.level - 1);
+function makeChoices(correct, distractors) {
+  return shuffle([correct, ...distractors.filter(d => d !== correct).slice(0, 3)]);
 }
 
-function buildQueue() {
-  let due = questions.filter(q => isDue(stateFor(q)));
-  if (due.length < 8) {
-    const extras = questions
-      .filter(q => !due.includes(q))
-      .sort((a, b) => stateFor(a).level - stateFor(b).level);
-    due = due.concat(extras.slice(0, 8 - due.length));
+function question(id, family, difficulty, prompt, correct, answers, info) {
+  const meta = TRACK.families[family];
+  return { id, family, difficulty, icon: meta.icon, topic: meta.name, question: prompt, correct, answers, info };
+}
+
+function generateFriction(difficulty) {
+  const a = pick(SURFACES);
+  const b = pick(SURFACES.filter(s => s.friction !== a.friction));
+  const low = a.friction === 'נמוך' ? a : b;
+  const high = a.friction === 'גבוה' ? a : b;
+  if (difficulty <= 2) {
+    return question(
+      `friction-low-${low.name}-${high.name}`,
+      'friction',
+      difficulty,
+      'על איזה משטח מכונית צעצוע תחליק רחוק יותר אם נותנים לה אותה דחיפה?',
+      low.name,
+      makeChoices(low.name, [high.name, 'על שניהם בדיוק אותו דבר', 'אי אפשר לדעת אף פעם']),
+      `על ${low.name} יש פחות חיכוך מאשר על ${high.name}. פחות חיכוך מתנגד פחות לתנועה, ולכן המכונית יכולה להמשיך רחוק יותר.`
+    );
   }
-  return shuffle(due).slice(0, 10);
+  return question(
+    `friction-stop-${low.name}-${high.name}-${difficulty}`,
+    'friction',
+    difficulty,
+    `שתי מכוניות זהות נוסעות באותה מהירות: אחת על ${low.name} ואחת על ${high.name}. איזו תעצור מהר יותר?`,
+    `המכונית על ${high.name}`,
+    makeChoices(`המכונית על ${high.name}`, [`המכונית על ${low.name}`, 'שתיהן יעצרו באותו זמן', 'המכונית הקלה יותר תמיד']),
+    `חיכוך גבוה יותר מאט תנועה מהר יותר. לכן על ${high.name} המכונית תאבד מהירות מהר יותר מאשר על ${low.name}.`
+  );
+}
+
+function generateCircuits(difficulty) {
+  const material = pick(CONDUCTORS);
+  if (difficulty <= 2) {
+    const correct = material.conducts ? 'היא תידלק' : 'היא לא תידלק';
+    return question(
+      `circuits-material-${material.name}`,
+      'circuits',
+      difficulty,
+      `מכניסים ${material.name} לרווח במעגל חשמלי פשוט עם סוללה ונורה. מה יקרה לנורה?`,
+      correct,
+      makeChoices(correct, ['היא תידלק ואז תקפא', 'הסוללה תהפוך למגנט', 'הנורה תשנה צבע בגלל האוויר']),
+      material.conducts
+        ? `${material.name} מוליך חשמל, ולכן הוא יכול להשלים את המסלול הסגור של המעגל.`
+        : `${material.name} מבודד יחסית, ולכן הזרם לא עובר דרכו בקלות והמעגל נשאר פתוח.`
+    );
+  }
+  const hasBreak = Math.random() < 0.5;
+  const correct = hasBreak ? 'אין מסלול סגור לזרם' : 'יש מסלול סגור לזרם';
+  return question(
+    `circuits-reason-${hasBreak ? 'open' : 'closed'}-${difficulty}`,
+    'circuits',
+    difficulty,
+    hasBreak
+      ? 'במעגל עם סוללה ונורה יש חוט אחד מנותק. מה ההסבר הטוב ביותר לכך שהנורה כבויה?'
+      : 'במעגל עם סוללה, נורה וחוטים מחוברים היטב הנורה דולקת. מה חייב להיות נכון?',
+    correct,
+    makeChoices(correct, ['החשמל נגמר כשהוא מגיע לנורה', 'הנורה דולקת רק בגלל חום היד', 'הסוללה עובדת בלי חיבורים']),
+    'זרם חשמלי צריך מסלול סגור כדי לזרום. נתק אחד מספיק כדי לעצור את הזרם בכל המעגל.'
+  );
+}
+
+function generateDensity(difficulty) {
+  const material = pick(MATERIALS);
+  if (difficulty <= 2) {
+    const correct = material.floats ? 'הוא יצוף' : 'הוא ישקע';
+    return question(
+      `density-float-${material.name}`,
+      'density',
+      difficulty,
+      `מניחים ${material.name} במים. מה סביר שיקרה?`,
+      correct,
+      makeChoices(correct, ['הוא ייעלם', 'הוא יהפוך לגז מיד', 'הוא תמיד יישאר באמצע']),
+      `${material.name} ${material.density}. חפצים שפחות צפופים מהמים צפים, וחפצים צפופים יותר שוקעים.`
+    );
+  }
+  const a = pick(MATERIALS);
+  const b = pick(MATERIALS.filter(m => m.floats !== a.floats));
+  const floater = a.floats ? a : b;
+  const sinker = a.floats ? b : a;
+  return question(
+    `density-compare-${floater.name}-${sinker.name}-${difficulty}`,
+    'density',
+    difficulty,
+    `למה ${floater.name} יכול לצוף במים אבל ${sinker.name} שוקע, גם אם ${sinker.name} קטן יותר?`,
+    'הצפיפות חשובה יותר מהגודל לבדו',
+    makeChoices('הצפיפות חשובה יותר מהגודל לבדו', ['כל דבר קטן תמיד שוקע', 'כל דבר גדול תמיד צף', 'מים בוחרים לפי צבע החפץ']),
+    `ציפה תלויה בצפיפות הממוצעת של החפץ ביחס למים, לא רק בגודל שלו. ${floater.name} פחות צפוף מהמים, ו-${sinker.name} צפוף יותר.`
+  );
+}
+
+function generateHeat(difficulty) {
+  const item = pick(HEAT_CASES);
+  if (difficulty <= 2) {
+    return question(
+      `heat-dry-${item.item}`,
+      'heat',
+      difficulty,
+      `מתי ${item.item} תתייבש מהר יותר?`,
+      item.hot,
+      makeChoices(item.hot, [item.cold, 'כשמכסים אותה בניילון', 'כשאין בכלל אוויר מסביבה']),
+      'אידוי מהיר יותר כשחם וכשהאוויר זז. רוח מפנה אדי מים מהמקום ועוזרת לעוד מים להתאדות.'
+    );
+  }
+  const cooling = Math.random() < 0.5;
+  const correct = cooling ? 'התעבות: גז הפך לנוזל' : 'התכה: מוצק הפך לנוזל';
+  return question(
+    `heat-change-${cooling ? 'condense' : 'melt'}-${difficulty}-${Math.floor(Math.random() * 1000)}`,
+    'heat',
+    difficulty,
+    cooling
+      ? 'אדי מים נוגעים במכסה קר של סיר והופכים לטיפות. איזה שינוי מצב קרה?'
+      : 'קוביית קרח נשארה בשמש והפכה למים. איזה שינוי מצב קרה?',
+    correct,
+    makeChoices(correct, ['אידוי: נוזל הפך לגז', 'קיפאון: נוזל הפך למוצק', 'מגנטיות: חומר נמשך לברזל']),
+    cooling ? 'בהתעבות, אדי מים מתקררים והופכים לטיפות מים נוזליות.' : 'בהתכה, חומר מוצק מקבל חום והופך לנוזל.'
+  );
+}
+
+function generateLight(difficulty) {
+  const object = pick(LIGHT_OBJECTS);
+  if (difficulty <= 2) {
+    const correct = `לקרב את ה${object} לפנס`;
+    return question(
+      `light-shadow-${object}`,
+      'light',
+      difficulty,
+      `רוצים שצל של ${object} יהיה גדול יותר על הקיר. מה כדאי לעשות?`,
+      correct,
+      makeChoices(correct, [`להרחיק את ה${object} מהפנס`, 'לכבות את הפנס', 'להשתמש באותו מרחק בדיוק']),
+      'כשחפץ קרוב יותר למקור האור, הוא חוסם חלק גדול יותר מקרני האור ולכן הצל שלו גדל.'
+    );
+  }
+  return question(
+    `light-refraction-${difficulty}-${Math.floor(Math.random() * 1000)}`,
+    'light',
+    difficulty,
+    'עיפרון בתוך כוס מים נראה כאילו הוא מתכופף במקום שבו הוא נכנס למים. מה ההסבר?',
+    'האור משנה כיוון כשהוא עובר בין אוויר למים',
+    makeChoices('האור משנה כיוון כשהוא עובר בין אוויר למים', ['המים שוברים את העיפרון באמת', 'העיפרון מושך את האור כמו מגנט', 'העין רואה רק דברים יבשים']),
+    'כשאור עובר מחומר אחד לחומר אחר, למשל מאוויר למים, המהירות והכיוון שלו יכולים להשתנות. לכן העיפרון נראה מכופף.'
+  );
+}
+
+function generateExperiments(difficulty) {
+  const exp = pick(EXPERIMENTS);
+  if (difficulty <= 2) {
+    return question(
+      `experiments-change-${exp.change}`,
+      'experiments',
+      difficulty,
+      `בניסוי בודקים ${exp.test}. מה הדבר שכדאי לשנות בכוונה?`,
+      exp.change,
+      makeChoices(exp.change, [exp.keep, 'כל הדברים בבת אחת', 'את שם הילד שמודד']),
+      `בניסוי הוגן משנים בעיקר דבר אחד: ${exp.change}. את שאר הדברים החשובים שומרים דומים כדי לדעת מה השפיע.`
+    );
+  }
+  return question(
+    `experiments-keep-${exp.change}-${difficulty}`,
+    'experiments',
+    difficulty,
+    `בניסוי בודקים ${exp.test}. מה חשוב להשאיר אותו דבר כדי שהניסוי יהיה הוגן?`,
+    exp.keep,
+    makeChoices(exp.keep, [exp.change, 'את התוצאה שרוצים לקבל', 'רק את צבע השולחן']),
+    `אם משנים יותר מדי דברים יחד, קשה לדעת מה גרם לתוצאה. לכן שומרים על ${exp.keep}, ומשנים את ${exp.change}.`
+  );
+}
+
+const GENERATORS = {
+  friction: generateFriction,
+  circuits: generateCircuits,
+  density: generateDensity,
+  heat: generateHeat,
+  light: generateLight,
+  experiments: generateExperiments
+};
+
+function chooseFamily(preferred = null) {
+  if (preferred) return preferred;
+  const weighted = Object.keys(TRACK.families).flatMap(family => {
+    const state = familyState(family);
+    const weight = Math.max(1, 6 - state.level) + state.misses;
+    return Array(weight).fill(family);
+  });
+  return pick(weighted);
+}
+
+function targetDifficulty(family, similar = false) {
+  const state = familyState(family);
+  const streakBonus = streak >= 4 ? 2 : streak >= 2 ? 1 : 0;
+  const raw = similar ? Math.max(1, state.level - 1) : state.level + streakBonus;
+  return Math.max(1, Math.min(5, raw));
+}
+
+function generateQuestion(preferredFamily = null, similar = false) {
+  for (let tries = 0; tries < 40; tries++) {
+    const family = chooseFamily(preferredFamily);
+    const q = GENERATORS[family](targetDifficulty(family, similar));
+    if (!data.solved[q.id] || similar) return q;
+  }
+  const family = chooseFamily(preferredFamily);
+  return GENERATORS[family](targetDifficulty(family, similar));
 }
 
 function setScreen(screen) {
@@ -334,12 +586,12 @@ function setScreen(screen) {
 }
 
 function showQuestion() {
-  const q = queue[currentIdx];
-  const state = stateFor(q);
+  currentQuestion = pending.length ? pending.shift() : generateQuestion();
+  const q = currentQuestion;
   document.getElementById('icon').textContent = q.icon;
   document.getElementById('question').textContent = q.question;
-  document.getElementById('topic').textContent = `${q.topic} · ${LEVEL_NAMES[state.level - 1]}`;
-  document.getElementById('progress').textContent = `שאלה ${currentIdx + 1} מתוך ${queue.length}`;
+  document.getElementById('topic').textContent = `${q.topic} · ${LEVEL_NAMES[q.difficulty - 1]}`;
+  document.getElementById('progress').textContent = `שאלה ${answered + 1} · ${TRACK.title}`;
   document.getElementById('score').textContent = score;
   document.getElementById('info-box').style.display = 'none';
   document.getElementById('next-btn').style.display = 'none';
@@ -358,24 +610,34 @@ function showQuestion() {
 
 function handleAnswer(btn, answer, q) {
   const correct = answer === q.correct;
+  answered++;
   document.querySelectorAll('.choice').forEach(choice => {
     choice.disabled = true;
     if (choice.textContent === q.correct) choice.classList.add('reveal');
     if (choice !== btn && choice.textContent !== q.correct) choice.classList.add('hidden-after-answer');
   });
   btn.classList.add(correct ? 'correct' : 'wrong');
-  if (correct) score++;
-  document.getElementById('score').textContent = score;
 
-  const state = stateFor(q);
+  const state = familyState(q.family);
   state.total++;
   if (correct) {
+    score++;
+    streak++;
     state.correct++;
-    state.level = Math.min(5, state.level + 1);
+    state.level = Math.min(5, state.level + (streak >= 3 ? 1 : 0));
+    data.solved[q.id] = true;
   } else {
-    state.level = 1;
+    streak = 0;
+    state.misses++;
+    state.level = Math.max(1, state.level - 1);
+    if (answered < SESSION_MAX) {
+      pending.splice(Math.min(1, pending.length), 0, generateQuestion(q.family, true));
+      pending.splice(Math.min(2, pending.length), 0, q);
+    }
   }
-  state.lastSession = data.sessionCount;
+  document.getElementById('score').textContent = score;
+  data.history.unshift({ id: q.id, family: q.family, difficulty: q.difficulty, correct, at: Date.now() });
+  data.history = data.history.slice(0, 80);
   savePlayerData();
 
   document.getElementById('info-box').textContent = q.info;
@@ -385,23 +647,21 @@ function handleAnswer(btn, answer, q) {
 
 function showSummary() {
   setScreen('summary');
-  const total = queue.length;
-  const pct = Math.round((score / total) * 100);
-  document.getElementById('final-score').textContent = `${score} / ${total}`;
+  const pct = Math.round((score / answered) * 100);
+  document.getElementById('final-score').textContent = `${score} / ${answered}`;
   document.getElementById('summary-text').textContent =
     pct === 100 ? 'מעולה! ענית נכון על הכל.' :
-    pct >= 70 ? 'יפה מאוד! המדע מתחיל להתחבר.' :
-    pct >= 40 ? 'התחלה טובה. עוד משחק יעזור לזכור.' :
-    'כדאי לנסות שוב ולקרוא את ההסברים.';
+    pct >= 70 ? 'יפה מאוד! השאלות הבאות יהיו מורכבות יותר.' :
+    pct >= 40 ? 'התחלה טובה. שאלות דומות יחזרו עד שהרעיון יישב טוב.' :
+    'כדאי לנסות שוב. המשחק יחזק את הנושאים שבהם היו טעויות.';
 
-  const counts = [0, 0, 0, 0, 0];
-  questions.forEach(q => counts[stateFor(q).level - 1]++);
   const table = document.getElementById('levels');
   while (table.rows.length > 1) table.deleteRow(1);
-  counts.forEach((count, i) => {
-    if (!count) return;
+  Object.entries(TRACK.families).forEach(([family, meta]) => {
+    const state = familyState(family);
+    const solvedCount = Object.keys(data.solved).filter(id => id.startsWith(`${family}-`)).length;
     const row = table.insertRow();
-    row.innerHTML = `<td>${LEVEL_NAMES[i]}</td><td>${count}</td><td>${LEVEL_INTERVALS[i]}</td>`;
+    row.innerHTML = `<td>${meta.name}</td><td>${LEVEL_NAMES[state.level - 1]}</td><td>${solvedCount}</td>`;
   });
 }
 
@@ -411,10 +671,11 @@ function startGame() {
   data = loadPlayerData(player);
   data.sessionCount++;
   savePlayerData();
-  queue = buildQueue();
-  currentIdx = 0;
+  pending = [];
+  answered = 0;
   score = 0;
-  document.getElementById('player-line').textContent = `${player} · שאלות מדע לגיל 8`;
+  streak = 0;
+  document.getElementById('player-line').textContent = `${player} · ${TRACK.title}`;
   setScreen('game');
   showQuestion();
 }
@@ -424,8 +685,7 @@ document.getElementById('name-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') startGame();
 });
 document.getElementById('next-btn').addEventListener('click', () => {
-  currentIdx++;
-  if (currentIdx >= queue.length) showSummary();
+  if (answered >= SESSION_BASE && (pending.length === 0 || answered >= SESSION_MAX)) showSummary();
   else showQuestion();
 });
 document.getElementById('again-btn').addEventListener('click', startGame);
@@ -435,9 +695,7 @@ document.getElementById('change-player-btn').addEventListener('click', () => {
   setScreen('start');
 });
 
-(async () => {
-  const resp = await fetch('../science_questions.json');
-  questions = await resp.json();
+(() => {
   const savedPlayer = localStorage.getItem(PLAYER_KEY);
   if (savedPlayer) document.getElementById('name-input').value = savedPlayer;
 })();
