@@ -382,6 +382,8 @@
       <button type="button" class="setup-option" data-count="6">6<span>קצר</span></button>
       <button type="button" class="setup-option selected" data-count="10">10<span>רגיל</span></button>
       <button type="button" class="setup-option" data-count="15">15<span>ארוך</span></button>
+      <button type="button" class="setup-option" data-count="20">20<span>עמוק</span></button>
+      <button type="button" class="setup-option" data-count="30">30<span>מרתון</span></button>
     </div>
   </div>
   <div>
@@ -457,6 +459,7 @@ let data = null;
 let selectedLevel = 'junior';
 let selectedQuestionCount = 10;
 let currentProfile = null;
+let seenQuestionIds = new Set();
 
 const TRACK = {
   title: 'פיזיקה של דברים יומיומיים',
@@ -554,6 +557,104 @@ const EXPERIMENTS = [
   { test: 'האם אורך החוט משנה את גובה הצליל', change: 'אורך החוט', keep: 'אותו חומר ואותה מתיחה בערך' },
   { test: 'האם גודל הצל משתנה כשמקרבים חפץ לפנס', change: 'מרחק החפץ מהפנס', keep: 'אותו חפץ ואותו פנס' }
 ];
+const ADVANCED_CASES = {
+  friction: [
+    {
+      id: 'braking-distance',
+      prompt: 'אופניים עם בלמים חזקים מדי נועלים את הגלגלים על כביש רטוב. למה זה עלול להגדיל את מרחק העצירה?',
+      correct: 'החלקה מקטינה שליטה ויכולה להפחית את החיכוך היעיל',
+      distractors: ['נעילת גלגלים תמיד מוסיפה אנרגיה', 'כביש רטוב מבטל את כוח הכבידה', 'הגלגלים הופכים לקלים יותר'],
+      info: 'כשגלגל מתגלגל בלי להחליק יש אחיזה טובה. החלקה יכולה להפחית שליטה ולבזבז אנרגיה בצורה פחות יעילה לעצירה.'
+    },
+    {
+      id: 'terminal-speed',
+      prompt: 'כדור נופל באוויר ובשלב מסוים כמעט מפסיק להאיץ. מה ההסבר?',
+      correct: 'כוח התנגדות האוויר גדל עד שהוא כמעט מאזן את הכבידה',
+      distractors: ['כוח הכבידה נגמר אחרי כמה שניות', 'הכדור מאבד את המסה שלו', 'האוויר מתחיל למשוך את הכדור למטה'],
+      info: 'ככל שהמהירות גדלה, התנגדות האוויר גדלה. כשהיא מאזנת את הכבידה, התאוצה קטנה מאוד והמהירות כמעט קבועה.'
+    }
+  ],
+  circuits: [
+    {
+      id: 'short-circuit',
+      prompt: 'חוט מתכת מחבר ישירות בין שני קצות סוללה בלי נורה. למה זה מסוכן?',
+      correct: 'ההתנגדות קטנה ולכן זרם גדול יכול לחמם את החוט והסוללה',
+      distractors: ['אין זרם בלי נורה', 'הסוללה הופכת למבודד מיד', 'החוט מייצר מים'],
+      info: 'קצר חשמלי יוצר מסלול קל מאוד לזרם. זרם גדול יכול לגרום לחימום מסוכן.'
+    },
+    {
+      id: 'parallel-bulbs',
+      prompt: 'בבית, כיבוי מנורה אחת לא מכבה את כל המנורות. איזה חיבור מתאים לכך?',
+      correct: 'חיבור במקביל, עם מסלולים נפרדים לזרם',
+      distractors: ['חיבור בטור במסלול יחיד', 'חיבור בלי סוללה או מקור חשמל', 'חיבור שבו כל המנורות הן מבודדים'],
+      info: 'בחיבור במקביל לכל ענף יש מסלול משלו. פתיחת ענף אחד לא חייבת לנתק ענפים אחרים.'
+    }
+  ],
+  density: [
+    {
+      id: 'submarine',
+      prompt: 'צוללת יכולה לשקוע ואז לצוף שוב. איזה שינוי מאפשר זאת?',
+      correct: 'שינוי כמות המים והאוויר במכלים משנה את הצפיפות הממוצעת',
+      distractors: ['המתכת משנה סוג בכל פעם', 'הים מפסיק למשוך אותה', 'הצוללת נעשית קטנה יותר בלי לשנות מסה'],
+      info: 'צוללת משנה את הצפיפות הממוצעת שלה בעזרת מכלי ציפה. יותר מים מגדילים צפיפות, יותר אוויר מקטין אותה.'
+    },
+    {
+      id: 'hydrometer',
+      prompt: 'אותו חפץ צף גבוה יותר במי מלח מאשר במים רגילים. מה אפשר להסיק?',
+      correct: 'מי מלח צפופים יותר ולכן דוחפים חזק יותר את החפץ',
+      distractors: ['החפץ איבד מסה במי מלח', 'מלח מבטל חיכוך', 'מים רגילים אינם מפעילים כוח ציפה'],
+      info: 'נוזל צפוף יותר מפעיל כוח ציפה גדול יותר עבור אותו נפח שקוע, ולכן החפץ יכול לצוף גבוה יותר.'
+    }
+  ],
+  heat: [
+    {
+      id: 'latent-heat',
+      prompt: 'קרח נמס במים חמים, אבל הטמפרטורה שלו נשארת בערך 0 מעלות בזמן ההמסה. לאן הולכת האנרגיה?',
+      correct: 'לשבירת המבנה המוצק במקום להעלאת הטמפרטורה',
+      distractors: ['האנרגיה נעלמת', 'הקרח מפסיק להיות חומר', 'המים מפסיקים להעביר חום'],
+      info: 'בזמן שינוי מצב, אנרגיה יכולה ללכת לשינוי המבנה בין החלקיקים. לכן הטמפרטורה לא תמיד עולה מיד.'
+    },
+    {
+      id: 'insulation',
+      prompt: 'תרמוס שומר משקה חם לאורך זמן. איזה עיקרון מסביר זאת?',
+      correct: 'הוא מקטין מעבר חום בין המשקה והסביבה',
+      distractors: ['הוא יוצר חום חדש כל הזמן', 'הוא מבטל את הטמפרטורה', 'הוא הופך נוזל למוצק'],
+      info: 'בידוד טוב מפחית הולכה, הסעה וקרינה של חום. כך המשקה מאבד חום לאט יותר.'
+    }
+  ],
+  light: [
+    {
+      id: 'total-internal',
+      prompt: 'סיב אופטי יכול להעביר אור לאורך כבל מתפתל. איזה רעיון מרכזי מעורב?',
+      correct: 'האור מוחזר שוב ושוב בתוך הסיב בזוויות מתאימות',
+      distractors: ['האור נע רק בקו ישר ולכן לא יכול להגיע', 'הסיב מייצר אור חדש בכל נקודה', 'האור הופך לקול בתוך הכבל'],
+      info: 'בסיבים אופטיים משתמשים בהחזרה פנימית כדי לשמור את האור בתוך הסיב גם כשהכבל מתפתל.'
+    },
+    {
+      id: 'spectrum',
+      prompt: 'מנסרה מפרקת אור לבן לצבעים. מה זה אומר על אור לבן?',
+      correct: 'הוא מורכב מתערובת של צבעים שונים',
+      distractors: ['המנסרה צובעת את האור בצבע חדש', 'אור לבן אינו אור אמיתי', 'רק זכוכית יכולה ליצור צבעים'],
+      info: 'אור לבן כולל אורכי גל שונים. במנסרה הם נשברים בזוויות שונות ולכן נפרדים לצבעים.'
+    }
+  ],
+  experiments: [
+    {
+      id: 'sample-size',
+      prompt: 'ילדה בדקה מכונית צעצוע פעם אחת על כל משטח וקיבלה תוצאה מפתיעה. מה הצעד המדעי הבא?',
+      correct: 'לחזור על המדידות כמה פעמים ולבדוק אם התוצאה חוזרת',
+      distractors: ['למחוק את התוצאה שלא אהבה', 'להחליף גם מכונית וגם משטח', 'להסיק מיד חוק כללי'],
+      info: 'מדידה יחידה יכולה להיות מושפעת מטעות מקרית. חזרות עוזרות לבדוק אם הדפוס אמיתי.'
+    },
+    {
+      id: 'blind-test',
+      prompt: 'בודקים אם ילדים מזהים משקה לפי טעם. למה כדאי להסתיר מהם את שם המשקה?',
+      correct: 'כדי שציפיות לא ישפיעו על התשובה',
+      distractors: ['כדי שהמשקה יתקרר מהר יותר', 'כדי לשנות את המשתנה הנבדק', 'כי בלי שם אין צורך למדוד'],
+      info: 'בניסוי טוב מנסים להפחית הטיות. אם המשתתפים יודעים מה הם שותים, הציפיות שלהם עלולות להשפיע.'
+    }
+  ]
+};
 
 function shuffle(items) {
   const arr = [...items];
@@ -696,11 +797,25 @@ function question(id, family, difficulty, prompt, correct, answers, info) {
   return { id, family, difficulty, icon: meta.icon, topic: meta.name, question: prompt, correct, answers, info };
 }
 
+function advancedQuestion(family, difficulty) {
+  const scenario = pick(ADVANCED_CASES[family]);
+  return question(
+    `${family}-advanced-${scenario.id}-${difficulty}`,
+    family,
+    difficulty,
+    scenario.prompt,
+    scenario.correct,
+    makeChoices(scenario.correct, scenario.distractors),
+    scenario.info
+  );
+}
+
 function generateFriction(difficulty) {
   const a = pick(SURFACES);
   const b = pick(SURFACES.filter(s => s.friction !== a.friction));
   const low = a.friction === 'נמוך' ? a : b;
   const high = a.friction === 'גבוה' ? a : b;
+  if (difficulty >= 7 && Math.random() < 0.65) return advancedQuestion('friction', difficulty);
   if (difficulty >= 7) {
     return question(
       `friction-energy-${low.name}-${high.name}-${difficulty}`,
@@ -758,6 +873,7 @@ function generateFriction(difficulty) {
 
 function generateCircuits(difficulty) {
   const material = pick(CONDUCTORS);
+  if (difficulty >= 7 && Math.random() < 0.65) return advancedQuestion('circuits', difficulty);
   if (difficulty >= 7) {
     return question(
       `circuits-series-parallel-${difficulty}-${Math.floor(Math.random() * 1000)}`,
@@ -811,6 +927,7 @@ function generateCircuits(difficulty) {
 
 function generateDensity(difficulty) {
   const material = pick(MATERIALS);
+  if (difficulty >= 7 && Math.random() < 0.65) return advancedQuestion('density', difficulty);
   if (difficulty >= 7) {
     return question(
       `density-displacement-${difficulty}-${Math.floor(Math.random() * 1000)}`,
@@ -874,6 +991,7 @@ function generateDensity(difficulty) {
 
 function generateHeat(difficulty) {
   const item = pick(HEAT_CASES);
+  if (difficulty >= 7 && Math.random() < 0.65) return advancedQuestion('heat', difficulty);
   if (difficulty >= 7) {
     return question(
       `heat-energy-balance-${difficulty}-${Math.floor(Math.random() * 1000)}`,
@@ -935,6 +1053,7 @@ function generateHeat(difficulty) {
 
 function generateLight(difficulty) {
   const object = pick(LIGHT_OBJECTS);
+  if (difficulty >= 7 && Math.random() < 0.65) return advancedQuestion('light', difficulty);
   if (difficulty >= 7) {
     return question(
       `light-ray-model-${difficulty}-${Math.floor(Math.random() * 1000)}`,
@@ -994,6 +1113,7 @@ function generateLight(difficulty) {
 
 function generateExperiments(difficulty) {
   const exp = pick(EXPERIMENTS);
+  if (difficulty >= 7 && Math.random() < 0.65) return advancedQuestion('experiments', difficulty);
   if (difficulty >= 7) {
     return question(
       `experiments-confounder-${exp.change}-${difficulty}`,
@@ -1067,13 +1187,19 @@ function targetDifficulty(family, similar = false) {
 }
 
 function generateQuestion(preferredFamily = null, similar = false) {
+  for (let tries = 0; tries < 80; tries++) {
+    const family = chooseFamily(preferredFamily);
+    const q = GENERATORS[family](targetDifficulty(family, similar));
+    if (seenQuestionIds.has(q.id)) continue;
+    if (!data.solved[q.id] || similar) return q;
+  }
   for (let tries = 0; tries < 40; tries++) {
     const family = chooseFamily(preferredFamily);
     const q = GENERATORS[family](targetDifficulty(family, similar));
-    if (!data.solved[q.id] || similar) return q;
+    if (!seenQuestionIds.has(q.id)) return q;
   }
   const family = chooseFamily(preferredFamily);
-  return GENERATORS[family](targetDifficulty(family, similar));
+  return advancedQuestion(family, targetDifficulty(family, similar));
 }
 
 function setScreen(screen) {
@@ -1088,6 +1214,7 @@ function setScreen(screen) {
 function showQuestion() {
   currentQuestion = pending.length ? pending.shift() : generateQuestion();
   const q = currentQuestion;
+  seenQuestionIds.add(q.id);
   document.getElementById('icon').textContent = q.icon;
   document.getElementById('question').textContent = q.question;
   document.getElementById('topic').textContent = `${q.topic} · ${LEVEL_NAMES[q.difficulty - 1]}`;
@@ -1222,6 +1349,7 @@ async function startGame() {
   data.sessionCount++;
   await savePlayerData();
   pending = [];
+  seenQuestionIds = new Set();
   answered = 0;
   score = 0;
   streak = 0;
