@@ -18,7 +18,7 @@
     padding: 18px;
     direction: rtl;
   }
-  header, #progress, #card, #summary, #start-screen {
+  header, #progress, #card, #summary, #start-screen, #user-screen {
     width: 100%;
     max-width: 760px;
   }
@@ -39,6 +39,15 @@
     color: #4d6870;
     font-size: 0.95rem;
   }
+  .header-main {
+    min-width: 0;
+  }
+  .header-actions {
+    display: flex;
+    gap: 7px;
+    flex-wrap: wrap;
+    margin-top: 7px;
+  }
   #score-box {
     background: #12505a;
     color: #fff;
@@ -49,7 +58,7 @@
     font-weight: 800;
     box-shadow: 0 10px 24px rgba(18, 80, 90, 0.18);
   }
-  #start-screen {
+  #start-screen, #user-screen {
     margin-top: 64px;
     background: #fff;
     border: 1px solid #cfe5e1;
@@ -58,7 +67,44 @@
     box-shadow: 0 16px 40px rgba(21, 49, 58, 0.11);
     text-align: center;
   }
-  #start-screen h1 { margin-bottom: 16px; }
+  #user-screen { display: none; }
+  #start-screen h1, #user-screen h1 { margin-bottom: 16px; }
+  #user-list {
+    display: grid;
+    gap: 9px;
+    margin-bottom: 14px;
+  }
+  .user-row {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .user-btn {
+    flex: 1;
+    min-height: 56px;
+    border: 2px solid #cfe5e1;
+    border-radius: 12px;
+    background: #fbfdfc;
+    color: #15313a;
+    padding: 10px 12px;
+    text-align: right;
+    font-weight: 900;
+  }
+  .user-btn span {
+    display: block;
+    margin-top: 3px;
+    color: #6b8288;
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+  .icon-btn {
+    min-width: 48px;
+    border: 2px solid #cfe5e1;
+    border-radius: 12px;
+    background: #e9f6f5;
+    color: #12505a;
+    font-weight: 900;
+  }
   #name-input {
     width: 100%;
     max-width: 360px;
@@ -241,9 +287,54 @@
   }
   #levels th, #levels td { padding: 8px 10px; border-bottom: 1px solid #e6efed; }
   #levels th { color: #12505a; background: #edf7f6; }
+  #report-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: rgba(21,49,58,0.48);
+    align-items: flex-start;
+    justify-content: center;
+    padding: 22px 14px;
+    overflow-y: auto;
+  }
+  #report-overlay.open { display: flex; }
+  #report-box {
+    width: 100%;
+    max-width: 560px;
+    background: #fff;
+    border-radius: 18px;
+    padding: 22px 20px;
+    box-shadow: 0 20px 52px rgba(21,49,58,0.24);
+  }
+  #report-close {
+    float: left;
+    border: 0;
+    background: transparent;
+    color: #6b8288;
+    font-size: 1.4rem;
+    line-height: 1;
+  }
+  #report-title { color: #12505a; margin-bottom: 4px; }
+  #report-meta { color: #6b8288; margin-bottom: 16px; }
+  .report-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: right;
+  }
+  .report-table th, .report-table td {
+    padding: 8px 7px;
+    border-bottom: 1px solid #e6efed;
+  }
+  .report-table th {
+    color: #12505a;
+    background: #edf7f6;
+  }
   @media (max-width: 640px) {
     body { padding: 12px; }
     header { align-items: flex-start; }
+    .header-actions { gap: 5px; }
+    .secondary { padding: 7px 9px; font-size: 0.85rem; }
     #score-box { min-width: 86px; padding: 8px 12px; font-size: 0.92rem; }
     #visual { min-height: 180px; }
     #question-row { padding: 14px 16px 4px; flex-direction: column; }
@@ -256,6 +347,21 @@
 </style>
 </head>
 <body>
+<div id="report-overlay">
+  <div id="report-box">
+    <button id="report-close" aria-label="סגור">✕</button>
+    <h2 id="report-title"></h2>
+    <div id="report-meta"></div>
+    <div id="report-content"></div>
+  </div>
+</div>
+
+<section id="user-screen">
+  <h1>משחק מדע 🔬</h1>
+  <div id="user-list"></div>
+  <button id="new-user-btn" class="primary">משתמש חדש</button>
+</section>
+
 <section id="start-screen">
   <h1>משחק מדע 🔬</h1>
   <input id="name-input" type="text" placeholder="השם שלך" maxlength="30">
@@ -278,12 +384,21 @@
   <div>
     <button id="start-btn" class="primary">התחל משחק</button>
   </div>
+  <div style="margin-top:12px">
+    <button id="setup-scores-btn" class="secondary">ניקוד</button>
+    <button id="setup-change-user-btn" class="secondary">שנה משתמש</button>
+  </div>
 </section>
 
 <header id="header">
-  <div>
+  <div class="header-main">
     <h1>משחק מדע 🔬</h1>
     <div id="player-line"></div>
+    <div class="header-actions">
+      <button id="home-btn" class="secondary">בית</button>
+      <button id="scores-btn" class="secondary">ניקוד</button>
+      <button id="change-user-btn" class="secondary">שנה משתמש</button>
+    </div>
   </div>
   <div id="score-box">ניקוד: <span id="score">0</span></div>
 </header>
@@ -309,6 +424,8 @@
     <tr><th>נושא</th><th>רמה</th><th>נפתרו</th></tr>
   </table>
   <button id="again-btn" class="primary">משחק נוסף</button>
+  <button id="summary-home-btn" class="secondary">בית</button>
+  <button id="summary-scores-btn" class="secondary">ניקוד</button>
   <button id="change-player-btn" class="secondary">שנה שחקן</button>
 </section>
 
@@ -448,6 +565,58 @@ function savePlayerData() {
   const all = loadAllProgress();
   all[player] = data;
   saveAllProgress(all);
+}
+
+function userStats(userData) {
+  const sessions = userData.sessionCount || 0;
+  const solved = Object.keys(userData.solved || {}).length;
+  const correct = Object.values(userData.families || {}).reduce((sum, state) => sum + (state.correct || 0), 0);
+  const total = Object.values(userData.families || {}).reduce((sum, state) => sum + (state.total || 0), 0);
+  return { sessions, solved, correct, total };
+}
+
+function renderUserList() {
+  const all = loadAllProgress();
+  const list = document.getElementById('user-list');
+  list.innerHTML = '';
+  const names = Object.keys(all).sort((a, b) => a.localeCompare(b));
+  if (!names.length) {
+    list.innerHTML = '<div style="color:#6b8288;padding:8px 0">עדיין אין משתמשים</div>';
+  }
+  names.forEach(name => {
+    const stats = userStats(all[name]);
+    const row = document.createElement('div');
+    row.className = 'user-row';
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'user-btn';
+    btn.innerHTML = `${name}<span>${stats.sessions} משחקים · ${stats.solved} שאלות נפתרו · ${stats.correct}/${stats.total}</span>`;
+    btn.addEventListener('click', () => chooseUser(name));
+
+    const reportBtn = document.createElement('button');
+    reportBtn.type = 'button';
+    reportBtn.className = 'icon-btn';
+    reportBtn.title = 'ניקוד';
+    reportBtn.textContent = '📊';
+    reportBtn.addEventListener('click', () => showReport(name, all[name]));
+
+    row.appendChild(btn);
+    row.appendChild(reportBtn);
+    list.appendChild(row);
+  });
+}
+
+function chooseUser(name) {
+  player = name;
+  localStorage.setItem(PLAYER_KEY, player);
+  document.getElementById('name-input').value = player;
+  setScreen('start');
+}
+
+function showUsers() {
+  renderUserList();
+  setScreen('users');
 }
 
 function familyState(family) {
@@ -716,6 +885,7 @@ function generateQuestion(preferredFamily = null, similar = false) {
 }
 
 function setScreen(screen) {
+  document.getElementById('user-screen').style.display = screen === 'users' ? 'block' : 'none';
   document.getElementById('start-screen').style.display = screen === 'start' ? 'block' : 'none';
   document.getElementById('header').style.display = screen === 'game' ? 'flex' : 'none';
   document.getElementById('progress').style.display = screen === 'game' ? 'block' : 'none';
@@ -805,6 +975,31 @@ function showSummary() {
   });
 }
 
+function showReport(name = player, userData = data || loadPlayerData(name)) {
+  const stats = userStats(userData);
+  document.getElementById('report-title').textContent = `ניקוד: ${name}`;
+  document.getElementById('report-meta').textContent =
+    `${stats.sessions} משחקים · ${stats.solved} שאלות נפתרו · ${stats.correct}/${stats.total} תשובות נכונות`;
+
+  const rows = Object.entries(TRACK.families).map(([family, meta]) => {
+    const state = (userData.families || {})[family] || { level: 1, correct: 0, total: 0 };
+    const solvedCount = Object.keys(userData.solved || {}).filter(id => id.startsWith(`${family}-`)).length;
+    const pct = state.total ? `${Math.round((state.correct / state.total) * 100)}%` : '-';
+    return `<tr><td>${meta.name}</td><td>${LEVEL_NAMES[(state.level || 1) - 1]}</td><td>${solvedCount}</td><td>${state.correct || 0}/${state.total || 0}</td><td>${pct}</td></tr>`;
+  }).join('');
+  document.getElementById('report-content').innerHTML = `
+    <table class="report-table">
+      <tr><th>נושא</th><th>רמה</th><th>נפתרו</th><th>נכון</th><th>דיוק</th></tr>
+      ${rows}
+    </table>
+  `;
+  document.getElementById('report-overlay').classList.add('open');
+}
+
+function closeReport() {
+  document.getElementById('report-overlay').classList.remove('open');
+}
+
 function selectSetupOption(groupId, dataName, value) {
   const group = document.getElementById(groupId);
   group.querySelectorAll('.setup-option').forEach(btn => {
@@ -842,6 +1037,15 @@ function startGame() {
   showQuestion();
 }
 
+function goHome() {
+  pending = [];
+  answered = 0;
+  score = 0;
+  streak = 0;
+  document.getElementById('score').textContent = '0';
+  setScreen('start');
+}
+
 document.querySelectorAll('#level-options .setup-option').forEach(btn => {
   btn.addEventListener('click', () => setLevel(btn.dataset.level));
 });
@@ -857,17 +1061,56 @@ document.getElementById('next-btn').addEventListener('click', () => {
   else showQuestion();
 });
 document.getElementById('again-btn').addEventListener('click', startGame);
+document.getElementById('summary-home-btn').addEventListener('click', goHome);
+document.getElementById('summary-scores-btn').addEventListener('click', () => showReport());
+document.getElementById('setup-scores-btn').addEventListener('click', () => {
+  if (!player) return showUsers();
+  data = data || loadPlayerData(player);
+  showReport();
+});
+document.getElementById('setup-change-user-btn').addEventListener('click', () => {
+  localStorage.removeItem(PLAYER_KEY);
+  player = '';
+  data = null;
+  document.getElementById('name-input').value = '';
+  showUsers();
+});
+document.getElementById('home-btn').addEventListener('click', goHome);
+document.getElementById('scores-btn').addEventListener('click', () => showReport());
+document.getElementById('change-user-btn').addEventListener('click', () => {
+  localStorage.removeItem(PLAYER_KEY);
+  player = '';
+  data = null;
+  document.getElementById('name-input').value = '';
+  showUsers();
+});
 document.getElementById('change-player-btn').addEventListener('click', () => {
   localStorage.removeItem(PLAYER_KEY);
+  player = '';
+  data = null;
+  document.getElementById('name-input').value = '';
+  showUsers();
+});
+document.getElementById('new-user-btn').addEventListener('click', () => {
+  player = '';
+  data = null;
   document.getElementById('name-input').value = '';
   setScreen('start');
+});
+document.getElementById('report-close').addEventListener('click', closeReport);
+document.getElementById('report-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('report-overlay')) closeReport();
 });
 
 (() => {
   const savedPlayer = localStorage.getItem(PLAYER_KEY);
-  if (savedPlayer) document.getElementById('name-input').value = savedPlayer;
   setLevel(localStorage.getItem(LEVEL_KEY) || selectedLevel);
   setQuestionCount(localStorage.getItem(COUNT_KEY) || selectedQuestionCount);
+  if (savedPlayer) {
+    chooseUser(savedPlayer);
+  } else {
+    showUsers();
+  }
 })();
 </script>
 </body>
