@@ -131,6 +131,7 @@
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
   }
+  #level-options { grid-template-columns: repeat(5, 1fr); }
   .setup-option {
     min-height: 54px;
     border: 2px solid #cfe5e1;
@@ -342,7 +343,7 @@
     .choice { min-height: 62px; font-size: 1rem; }
     #info-box { margin: 0 16px 14px; }
     #next-btn { width: calc(100% - 32px); margin: 0 16px 18px; }
-    .option-grid { grid-template-columns: 1fr; }
+    .option-grid, #level-options { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -371,6 +372,8 @@
       <button type="button" class="setup-option selected" data-level="junior">צעיר<span>בערך גיל 5</span></button>
       <button type="button" class="setup-option" data-level="standard">רגיל<span>בערך גיל 8</span></button>
       <button type="button" class="setup-option" data-level="challenge">אתגר<span>מתקדמים</span></button>
+      <button type="button" class="setup-option" data-level="expert">מומחה<span>סקרנים</span></button>
+      <button type="button" class="setup-option" data-level="olympiad">אולימפי<span>קשה מאוד</span></button>
     </div>
   </div>
   <div class="setup-group">
@@ -442,7 +445,7 @@ const STORAGE_KEY = 'science_questions_progress_v2';
 const PLAYER_KEY = 'science_questions_player';
 const LEVEL_KEY = 'science_questions_level';
 const COUNT_KEY = 'science_questions_count';
-const LEVEL_NAMES = ['מתחיל', 'חוקר', 'מבין', 'פותר', 'מדען!'];
+const LEVEL_NAMES = ['מתחיל', 'חוקר', 'מבין', 'פותר', 'מדען!', 'מומחה', 'מהנדס', 'אולימפי'];
 
 let pending = [];
 let currentQuestion = null;
@@ -493,6 +496,24 @@ const LEVEL_PROFILES = {
     maxDifficulty: 5,
     choiceCount: 4,
     levelStepStreak: 2,
+    families: ['friction', 'circuits', 'density', 'heat', 'light', 'experiments']
+  },
+  expert: {
+    label: 'מומחה',
+    subtitle: 'סקרנים',
+    minDifficulty: 4,
+    maxDifficulty: 7,
+    choiceCount: 4,
+    levelStepStreak: 2,
+    families: ['friction', 'circuits', 'density', 'heat', 'light', 'experiments']
+  },
+  olympiad: {
+    label: 'אולימפי',
+    subtitle: 'קשה מאוד',
+    minDifficulty: 6,
+    maxDifficulty: 8,
+    choiceCount: 4,
+    levelStepStreak: 1,
     families: ['friction', 'circuits', 'density', 'heat', 'light', 'experiments']
   }
 };
@@ -680,6 +701,28 @@ function generateFriction(difficulty) {
   const b = pick(SURFACES.filter(s => s.friction !== a.friction));
   const low = a.friction === 'נמוך' ? a : b;
   const high = a.friction === 'גבוה' ? a : b;
+  if (difficulty >= 7) {
+    return question(
+      `friction-energy-${low.name}-${high.name}-${difficulty}`,
+      'friction',
+      difficulty,
+      `שתי מכוניות זהות מתחילות באותה מהירות. אחת עוצרת מהר על ${high.name}, והשנייה ממשיכה רחוק על ${low.name}. מה קרה לאנרגיית התנועה של המכונית שנעצרה מהר?`,
+      'יותר ממנה הפך לחום בגלל חיכוך',
+      makeChoices('יותר ממנה הפך לחום בגלל חיכוך', ['היא נעלמה לגמרי', 'היא הפכה לכוח כבידה', 'היא עברה למכונית השנייה בלי מגע']),
+      'חיכוך עושה עבודה נגד התנועה וממיר חלק מאנרגיית התנועה לחום ולרעידות קטנות. לכן משטח עם חיכוך גבוה עוצר מהר יותר.'
+    );
+  }
+  if (difficulty >= 5) {
+    return question(
+      `friction-tradeoff-${low.name}-${high.name}-${difficulty}`,
+      'friction',
+      difficulty,
+      'רוצים נעל בטוחה לריצה על משטח רטוב, אבל שלא תיתקע בכל צעד. איזו תכונה הכי חשובה בתכנון הסוליה?',
+      'מספיק חיכוך לאחיזה, בלי יותר מדי התנגדות לתנועה',
+      makeChoices('מספיק חיכוך לאחיזה, בלי יותר מדי התנגדות לתנועה', ['כמה שפחות חיכוך תמיד', 'כמה שיותר חיכוך בכל מצב', 'צבע כהה שמושך את הרצפה']),
+      'בתכנון אמיתי יש פשרה: צריך חיכוך כדי לא להחליק, אבל עודף חיכוך יכול לבזבז אנרגיה ולהפריע לתנועה.'
+    );
+  }
   if (currentProfile && currentProfile.choiceCount === 2) {
     return question(
       `friction-junior-${low.name}-${high.name}`,
@@ -715,6 +758,28 @@ function generateFriction(difficulty) {
 
 function generateCircuits(difficulty) {
   const material = pick(CONDUCTORS);
+  if (difficulty >= 7) {
+    return question(
+      `circuits-series-parallel-${difficulty}-${Math.floor(Math.random() * 1000)}`,
+      'circuits',
+      difficulty,
+      'שתי נורות מחוברות במעגל. כשמוציאים נורה אחת, השנייה נכבית גם היא. מה אפשר להסיק על החיבור?',
+      'הנורות כנראה מחוברות בטור, במסלול אחד',
+      makeChoices('הנורות כנראה מחוברות בטור, במסלול אחד', ['הנורות מחוברות במקביל במסלולים נפרדים', 'אין במעגל סוללה', 'החוטים עשויים מפלסטיק בלבד']),
+      'בחיבור טורי יש מסלול אחד לזרם. אם מוציאים רכיב אחד, המסלול נפתח והזרם מפסיק בכל המעגל.'
+    );
+  }
+  if (difficulty >= 5) {
+    return question(
+      `circuits-switch-${difficulty}-${Math.floor(Math.random() * 1000)}`,
+      'circuits',
+      difficulty,
+      'מתג מכבה נורה בלי להוציא את הסוללה. מה המתג עושה במעגל?',
+      'פותח או סוגר את המסלול של הזרם',
+      makeChoices('פותח או סוגר את המסלול של הזרם', ['מייצר חשמל חדש', 'שומר את האור בתוך הנורה', 'משנה את המתכת לפלסטיק']),
+      'מתג הוא רכיב ששולט אם המעגל סגור או פתוח. כשהמעגל פתוח, זרם לא יכול לזרום.'
+    );
+  }
   if (difficulty <= 2) {
     const correct = material.conducts ? 'היא תידלק' : 'היא לא תידלק';
     return question(
@@ -746,6 +811,28 @@ function generateCircuits(difficulty) {
 
 function generateDensity(difficulty) {
   const material = pick(MATERIALS);
+  if (difficulty >= 7) {
+    return question(
+      `density-displacement-${difficulty}-${Math.floor(Math.random() * 1000)}`,
+      'density',
+      difficulty,
+      'סירה ממתכת כבדה צפה, אבל מטבע קטן מאותה מתכת שוקע. מה ההסבר הטוב ביותר?',
+      'הסירה כוללת הרבה אוויר ולכן הצפיפות הממוצעת שלה קטנה יותר',
+      makeChoices('הסירה כוללת הרבה אוויר ולכן הצפיפות הממוצעת שלה קטנה יותר', ['מתכת צפה רק כשהיא גדולה', 'מים דוחים רק צורות של סירה', 'מטבעות מושכים את קרקעית הבריכה']),
+      'ציפה תלויה בצפיפות הממוצעת ובכמות המים שהגוף דוחק. סירה חלולה יכולה להיות פחות צפופה בממוצע מהמים.'
+    );
+  }
+  if (difficulty >= 5) {
+    return question(
+      `density-average-${difficulty}-${Math.floor(Math.random() * 1000)}`,
+      'density',
+      difficulty,
+      'כדור פלסטיק חלול צף, אבל אותו פלסטיק כגוש מלא כמעט שוקע. איזה רעיון מסביר את ההבדל?',
+      'צפיפות ממוצעת של כל הגוף, כולל האוויר שבתוכו',
+      makeChoices('צפיפות ממוצעת של כל הגוף, כולל האוויר שבתוכו', ['רק הצבע של הפלסטיק', 'רק הטמפרטורה של המים', 'רק המקום שבו זורקים אותו']),
+      'כשגוף חלול כולל אוויר, המסה שלו מחולקת על נפח גדול יותר. זה מוריד את הצפיפות הממוצעת ויכול לעזור לו לצוף.'
+    );
+  }
   if (currentProfile && currentProfile.choiceCount === 2) {
     const correct = material.floats ? 'יצוף' : 'ישקע';
     return question(
@@ -787,6 +874,28 @@ function generateDensity(difficulty) {
 
 function generateHeat(difficulty) {
   const item = pick(HEAT_CASES);
+  if (difficulty >= 7) {
+    return question(
+      `heat-energy-balance-${difficulty}-${Math.floor(Math.random() * 1000)}`,
+      'heat',
+      difficulty,
+      'שתי כוסות מים זהות עומדות בחדר. אחת מכוסה והשנייה פתוחה. איזו תאבד פחות מים במשך הלילה, ולמה?',
+      'הכוס המכוסה, כי פחות אדי מים בורחים לאוויר',
+      makeChoices('הכוס המכוסה, כי פחות אדי מים בורחים לאוויר', ['הכוס הפתוחה, כי יש לה יותר מקום', 'שתיהן תמיד יאבדו בדיוק אותו דבר', 'הכוס המכוסה, כי המכסה יוצר מים חדשים']),
+      'אידוי ממשיך כל הזמן מפני השטח. מכסה מקטין מעבר של אדי מים לאוויר ולכן מאט את איבוד המים.'
+    );
+  }
+  if (difficulty >= 5) {
+    return question(
+      `heat-particles-${difficulty}-${Math.floor(Math.random() * 1000)}`,
+      'heat',
+      difficulty,
+      'כשמחממים מים בסיר, למה האידוי נהיה מהיר יותר?',
+      'לחלקיקי המים יש יותר אנרגיה ולכן יותר מהם יכולים לברוח לאוויר',
+      makeChoices('לחלקיקי המים יש יותר אנרגיה ולכן יותר מהם יכולים לברוח לאוויר', ['המים נעשים קלים כי הם מאבדים צבע', 'החום יוצר אוויר חדש בתוך המים', 'הסיר מושך את המים למעלה']),
+      'חימום מעלה את האנרגיה הממוצעת של חלקיקי המים. יותר חלקיקים מצליחים לעזוב את הנוזל ולהפוך לאדים.'
+    );
+  }
   if (currentProfile && currentProfile.choiceCount === 2) {
     return question(
       `heat-junior-${item.item}`,
@@ -826,6 +935,28 @@ function generateHeat(difficulty) {
 
 function generateLight(difficulty) {
   const object = pick(LIGHT_OBJECTS);
+  if (difficulty >= 7) {
+    return question(
+      `light-ray-model-${difficulty}-${Math.floor(Math.random() * 1000)}`,
+      'light',
+      difficulty,
+      'מצלמה נקב קטנה יוצרת תמונה הפוכה על מסך. איזה רעיון מסביר את זה?',
+      'קרני אור נעות בקווים ישרים וחוצות זו את זו דרך הנקב',
+      makeChoices('קרני אור נעות בקווים ישרים וחוצות זו את זו דרך הנקב', ['האור תמיד מסתובב במעגלים', 'המסך הופך כל דבר בעצמו', 'הנקב מייצר תמונה חדשה מדמיון']),
+      'במודל הקרניים, אור מהחלק העליון של העצם עובר דרך הנקב ומגיע נמוך יותר במסך, ולהפך. לכן התמונה מתהפכת.'
+    );
+  }
+  if (difficulty >= 5) {
+    return question(
+      `light-reflection-angle-${difficulty}-${Math.floor(Math.random() * 1000)}`,
+      'light',
+      difficulty,
+      'מאירים פנס על מראה בזווית. לאן האור יוחזר?',
+      'בזווית מסודרת: זווית הפגיעה דומה לזווית ההחזרה',
+      makeChoices('בזווית מסודרת: זווית הפגיעה דומה לזווית ההחזרה', ['לכל הכיוונים באותה מידה תמיד', 'ישר לתוך המראה ונעלם', 'רק לכיוון הרצפה']),
+      'במראה חלקה יש החזרה מסודרת. הקרן המוחזרת יוצאת בזווית דומה לזווית שבה הקרן פגעה במראה.'
+    );
+  }
   if (currentProfile && currentProfile.choiceCount === 2) {
     const correct = `לקרב את ה${object} לפנס`;
     return question(
@@ -863,6 +994,28 @@ function generateLight(difficulty) {
 
 function generateExperiments(difficulty) {
   const exp = pick(EXPERIMENTS);
+  if (difficulty >= 7) {
+    return question(
+      `experiments-confounder-${exp.change}-${difficulty}`,
+      'experiments',
+      difficulty,
+      `ילד בדק ${exp.test}, אבל בכל ניסיון הוא גם שינה את ${exp.change} וגם את ${exp.keep}. מה הבעיה במסקנה?`,
+      'אי אפשר לדעת איזה שינוי גרם לתוצאה',
+      makeChoices('אי אפשר לדעת איזה שינוי גרם לתוצאה', ['המסקנה תמיד נכונה כי היו שני שינויים', 'אין צורך במדידות כשעושים ניסוי', 'שני שינויים תמיד מבטלים זה את זה']),
+      'כשמשנים כמה גורמים יחד, הם מתערבבים. כדי להסיק סיבה ותוצאה, צריך לשנות גורם מרכזי אחד ולשמור על שאר התנאים דומים.'
+    );
+  }
+  if (difficulty >= 5) {
+    return question(
+      `experiments-repeat-average-${exp.change}-${difficulty}`,
+      'experiments',
+      difficulty,
+      `בניסוי בודקים ${exp.test}. למה כדאי לחזור על כל מדידה כמה פעמים ולחשב תוצאה ממוצעת?`,
+      'כדי להקטין השפעה של טעויות מקריות',
+      makeChoices('כדי להקטין השפעה של טעויות מקריות', ['כדי לבחור רק את התוצאה שאוהבים', 'כדי לשנות עוד גורמים בסתר', 'כדי שהמספרים יהיו ארוכים יותר']),
+      'חזרה על מדידות עוזרת לזהות תוצאות חריגות. ממוצע של כמה ניסיונות בדרך כלל אמין יותר ממדידה אחת.'
+    );
+  }
   if (difficulty <= 2) {
     return question(
       `experiments-change-${exp.change}`,
@@ -973,7 +1126,8 @@ function handleAnswer(btn, answer, q) {
     streak++;
     state.correct++;
     const stepAt = currentProfile ? currentProfile.levelStepStreak : 3;
-    state.level = Math.min(5, state.level + (streak >= stepAt ? 1 : 0));
+    const maxLevel = currentProfile ? currentProfile.maxDifficulty : LEVEL_NAMES.length;
+    state.level = Math.min(maxLevel, state.level + (streak >= stepAt ? 1 : 0));
     data.solved[q.id] = true;
   } else {
     streak = 0;
